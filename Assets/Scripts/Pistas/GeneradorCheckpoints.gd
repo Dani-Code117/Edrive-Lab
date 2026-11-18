@@ -61,7 +61,10 @@ static func validar_y_generar(
 	# 5. Ordenar estrictamente en sentido horario (producto cruzado positivo en Godot 2D).
 	ciclo = _asegurar_sentido_horario(ciclo)
 
-	# 6. Seleccionar 1 de cada N celdas para los checkpoints (empezando adelante de la meta).
+	# 6. Calcular el radio local de pista en cada punto del eje central.
+	var radios_eje := _calcular_radios_eje(celdas_asfalto, ciclo, tamanio_celda)
+
+	# 7. Seleccionar 1 de cada N celdas para los checkpoints (empezando adelante de la meta).
 	var checkpoints := _submuestrear_checkpoints(ciclo, PASO_CHECKPOINT)
 	if checkpoints.size() < 3:
 		return _error("El circuito necesita ser un poco más largo para generar checkpoints.")
@@ -74,6 +77,8 @@ static func validar_y_generar(
 		"valido": true,
 		"mensaje": "¡Pista válida! (%d checkpoints en sentido horario)" % checkpoints.size(),
 		"checkpoints": checkpoints,
+		"eje_central": ciclo,
+		"radios_eje": radios_eje,
 		"rotacion_salida": rotacion_salida,
 	}
 
@@ -83,6 +88,8 @@ static func _error(msg: String) -> Dictionary:
 		"valido": false,
 		"mensaje": msg,
 		"checkpoints": [] as Array[Vector2i],
+		"eje_central": [] as Array[Vector2i],
+		"radios_eje": [] as Array[float],
 		"rotacion_salida": 0.0,
 	}
 
@@ -144,6 +151,42 @@ static func _tiene_hueco_interior(celdas_asfalto: Dictionary) -> bool:
 				return true
 
 	return false
+
+
+static func _calcular_radios_eje(
+	celdas_asfalto: Dictionary,
+	ciclo: Array[Vector2i],
+	tamanio_celda: int
+) -> Array[float]:
+	var distancias: Dictionary = {}
+	var cola: Array[Vector2i] = []
+
+	for c: Vector2i in celdas_asfalto.keys():
+		var toca_pasto := false
+		for dir in VECINOS_8:
+			if not celdas_asfalto.has(c + dir):
+				toca_pasto = true
+				break
+		if toca_pasto:
+			distancias[c] = 1
+			cola.append(c)
+
+	var idx: int = 0
+	while idx < cola.size():
+		var actual := cola[idx]
+		idx += 1
+		var d: int = distancias[actual]
+		for dir in VECINOS_8:
+			var sig := actual + dir
+			if celdas_asfalto.has(sig) and not distancias.has(sig):
+				distancias[sig] = d + 1
+				cola.append(sig)
+
+	var radios: Array[float] = []
+	for c in ciclo:
+		var d: int = distancias.get(c, 1)
+		radios.append((float(d) - 0.5) * float(tamanio_celda))
+	return radios
 
 
 static func _extraer_eje_central(celdas_asfalto: Dictionary) -> Dictionary:

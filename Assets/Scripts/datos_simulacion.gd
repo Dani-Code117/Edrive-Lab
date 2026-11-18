@@ -16,6 +16,9 @@ var tiene_meta: bool = false
 
 ## Secuencia ordenada en sentido horario de celdas centrales para los checkpoints.
 var ruta_checkpoints: Array[Vector2i] = []
+var eje_central: Array[Vector2i] = []
+var radios_eje: Array[float] = []
+var ancho_pista: float = 96.0
 var posicion_salida: Vector2 = Vector2.ZERO
 var rotacion_salida: float = 0.0
 
@@ -53,6 +56,9 @@ func limpiar_pista() -> void:
 	celda_meta = Vector2i(-1, -1)
 	tiene_meta = false
 	ruta_checkpoints.clear()
+	eje_central.clear()
+	radios_eje.clear()
+	ancho_pista = 96.0
 	posicion_salida = Vector2.ZERO
 	rotacion_salida = 0.0
 
@@ -61,11 +67,17 @@ func guardar_pista(
 	nuevas_celdas: Dictionary,
 	meta: Vector2i,
 	checkpoints: Array[Vector2i],
-	rot_salida: float
+	rot_salida: float,
+	nuevo_eje: Array[Vector2i] = [],
+	nuevos_radios: Array[float] = [],
+	nuevo_ancho: float = 96.0
 ) -> void:
 	celdas_asfalto = nuevas_celdas.duplicate()
 	celda_meta = meta
 	tiene_meta = true
 	ruta_checkpoints = checkpoints.duplicate()
+	eje_central = nuevo_eje.duplicate()
+	radios_eje = nuevos_radios.duplicate()
+	ancho_pista = nuevo_ancho
 	posicion_salida = Vector2(meta) * TAMANIO_CELDA + Vector2.ONE * (TAMANIO_CELDA * 0.5)
 	rotacion_salida = rot_salida

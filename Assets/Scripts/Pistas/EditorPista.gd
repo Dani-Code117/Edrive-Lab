@@ -29,8 +29,10 @@ var _borrando_rapido: bool = false
 var _celda_hover: Vector2i = Vector2i(-1, -1)
 var _ultima_celda_trazo: Vector2i = Vector2i(-1, -1)
 var _interaccion_habilitada: bool = true
+var _modo_vista_previa: bool = false
 
 @onready var tile_map: TileMapLayer = $TileMapLayer
+@onready var tile_map_final: TileMapLayer = $TileMapFinal
 @onready var overlay: Node2D = $Overlay
 
 
@@ -130,6 +132,25 @@ func limpiar_todo() -> void:
 
 func obtener_validacion() -> Dictionary:
 	return ultima_validacion
+
+
+func mostrar_vista_previa_tilemap() -> void:
+	_modo_vista_previa = true
+	_interaccion_habilitada = false
+	_pintando = false
+	_borrando_rapido = false
+	tile_map.visible = false
+	tile_map_final.visible = true
+	ConstructorPista.construir_pista_suave(tile_map_final, celdas_asfalto, false)
+	overlay.queue_redraw()
+
+
+func volver_a_edicion() -> void:
+	_modo_vista_previa = false
+	_interaccion_habilitada = true
+	tile_map_final.visible = false
+	tile_map.visible = true
+	overlay.queue_redraw()
 
 
 func procesar_input_lienzo(event: InputEvent) -> void:
@@ -307,25 +328,26 @@ func _on_overlay_draw() -> void:
 	var ancho_px := DatosSimulacion.ANCHO_GRID * tam
 	var alto_px := DatosSimulacion.ALTO_GRID * tam
 
-	# 1. Cuadrícula sutil
-	var col_grid := Color(1.0, 1.0, 1.0, 0.05)
-	for x in range(DatosSimulacion.ANCHO_GRID + 1):
-		overlay.draw_line(Vector2(x * tam, 0), Vector2(x * tam, alto_px), col_grid, 1.0)
-	for y in range(DatosSimulacion.ALTO_GRID + 1):
-		overlay.draw_line(Vector2(0, y * tam), Vector2(ancho_px, y * tam), col_grid, 1.0)
+	# 1. Cuadrícula sutil (solo en modo edición)
+	if not _modo_vista_previa:
+		var col_grid := Color(1.0, 1.0, 1.0, 0.05)
+		for x in range(DatosSimulacion.ANCHO_GRID + 1):
+			overlay.draw_line(Vector2(x * tam, 0), Vector2(x * tam, alto_px), col_grid, 1.0)
+		for y in range(DatosSimulacion.ALTO_GRID + 1):
+			overlay.draw_line(Vector2(0, y * tam), Vector2(ancho_px, y * tam), col_grid, 1.0)
 
-	# 2. Bordes de pista (pianitos blancos donde el asfalto toca pasto)
-	var col_borde := Color(0.88, 0.88, 0.92, 0.65)
-	for c: Vector2i in celdas_asfalto.keys():
-		var p := Vector2(c) * tam
-		if not celdas_asfalto.has(c + Vector2i(0, -1)):
-			overlay.draw_line(p, p + Vector2(tam, 0), col_borde, 2.0)
-		if not celdas_asfalto.has(c + Vector2i(0, 1)):
-			overlay.draw_line(p + Vector2(0, tam), p + Vector2(tam, tam), col_borde, 2.0)
-		if not celdas_asfalto.has(c + Vector2i(-1, 0)):
-			overlay.draw_line(p, p + Vector2(0, tam), col_borde, 2.0)
-		if not celdas_asfalto.has(c + Vector2i(1, 0)):
-			overlay.draw_line(p + Vector2(tam, 0), p + Vector2(tam, tam), col_borde, 2.0)
+		# 2. Bordes de pista (pianitos blancos donde el asfalto toca pasto)
+		var col_borde := Color(0.88, 0.88, 0.92, 0.65)
+		for c: Vector2i in celdas_asfalto.keys():
+			var p := Vector2(c) * tam
+			if not celdas_asfalto.has(c + Vector2i(0, -1)):
+				overlay.draw_line(p, p + Vector2(tam, 0), col_borde, 2.0)
+			if not celdas_asfalto.has(c + Vector2i(0, 1)):
+				overlay.draw_line(p + Vector2(0, tam), p + Vector2(tam, tam), col_borde, 2.0)
+			if not celdas_asfalto.has(c + Vector2i(-1, 0)):
+				overlay.draw_line(p, p + Vector2(0, tam), col_borde, 2.0)
+			if not celdas_asfalto.has(c + Vector2i(1, 0)):
+				overlay.draw_line(p + Vector2(tam, 0), p + Vector2(tam, tam), col_borde, 2.0)
 
 	# 3. Previsualización de checkpoints generados si la pista es válida
 	if ultima_validacion.get("valido", false):
@@ -351,8 +373,8 @@ func _on_overlay_draw() -> void:
 			var dir := Vector2.RIGHT.rotated(rot)
 			overlay.draw_line(centro_m, centro_m + dir * 24.0, Color(1.0, 0.85, 0.15, 0.95), 3.0)
 
-	# 5. Previsualización de la brocha bajo el cursor
-	if _celda_en_tablero(_celda_hover):
+	# 5. Previsualización de la brocha bajo el cursor (solo en modo edición)
+	if not _modo_vista_previa and _celda_en_tablero(_celda_hover):
 		if herramienta_actual == Herramienta.META:
 			var rect_meta := Rect2(Vector2(_celda_hover) * tam, Vector2(tam, tam))
 			overlay.draw_rect(rect_meta, Color(1.0, 0.85, 0.15, 0.35), true)

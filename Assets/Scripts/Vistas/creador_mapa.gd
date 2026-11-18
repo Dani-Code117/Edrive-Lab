@@ -5,7 +5,10 @@ const ESCENA_CONFIGURACION := "res://Assets/Escenas/Vistas/configuracion_carrera
 
 @onready var lbl_estado: Label = $Layout/BarraSuperior/Margin/HBox/LblEstado
 @onready var btn_volver: Button = $Layout/BarraSuperior/Margin/HBox/BtnVolver
+@onready var btn_editar: Button = $Layout/BarraSuperior/Margin/HBox/BtnEditar
 @onready var btn_confirmar: Button = $Layout/BarraSuperior/Margin/HBox/BtnConfirmar
+
+@onready var panel_lateral: PanelContainer = $Layout/Cuerpo/PanelLateral
 
 @onready var btn_pincel: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnPincel
 @onready var btn_borrador: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnBorrador
@@ -15,6 +18,9 @@ const ESCENA_CONFIGURACION := "res://Assets/Escenas/Vistas/configuracion_carrera
 
 @onready var area_lienzo: Control = $Layout/Cuerpo/AreaLienzo
 @onready var editor_pista: Node2D = $Layout/Cuerpo/AreaLienzo/EditorPista
+
+
+var _en_vista_previa: bool = false
 
 
 func _ready() -> void:
@@ -31,6 +37,7 @@ func _ready() -> void:
 	opt_grosor.item_selected.connect(_on_grosor_seleccionado)
 	btn_limpiar.pressed.connect(_on_limpiar_pressed)
 	btn_volver.pressed.connect(_on_volver_pressed)
+	btn_editar.pressed.connect(_on_editar_pressed)
 	btn_confirmar.pressed.connect(_on_confirmar_pressed)
 
 	area_lienzo.gui_input.connect(editor_pista.procesar_input_lienzo)
@@ -75,20 +82,45 @@ func _on_volver_pressed() -> void:
 	get_tree().change_scene_to_file(ESCENA_MENU)
 
 
+func _on_editar_pressed() -> void:
+	_en_vista_previa = false
+	btn_editar.visible = false
+	panel_lateral.visible = true
+	btn_confirmar.text = "Confirmar Pista"
+	editor_pista.volver_a_edicion()
+	var validacion: Dictionary = editor_pista.obtener_validacion()
+	_on_pista_actualizada(validacion["valido"], validacion["mensaje"])
+
+
 func _on_confirmar_pressed() -> void:
 	var validacion: Dictionary = editor_pista.obtener_validacion()
 	if not validacion.get("valido", false):
 		return
 
-	DatosSimulacion.guardar_pista(
-		editor_pista.celdas_asfalto,
-		editor_pista.celda_meta,
-		validacion["checkpoints"],
-		validacion["rotacion_salida"]
-	)
+	if not _en_vista_previa:
+		var eje: Array[Vector2i] = validacion.get("eje_central", [] as Array[Vector2i])
+		var radios: Array[float] = validacion.get("radios_eje", [] as Array[float])
+		var ancho := maxf(float(editor_pista.grosor_pincel * DatosSimulacion.TAMANIO_CELDA), 64.0)
+		DatosSimulacion.guardar_pista(
+			editor_pista.celdas_asfalto,
+			editor_pista.celda_meta,
+			validacion["checkpoints"],
+			validacion["rotacion_salida"],
+			eje,
+			radios,
+			ancho
+		)
+		_en_vista_previa = true
+		panel_lateral.visible = false
+		btn_editar.visible = true
+		btn_confirmar.text = "Continuar →"
+		editor_pista.mostrar_vista_previa_tilemap()
+		lbl_estado.text = "¡Pista suavizada lista! (%d checkpoints)" % validacion["checkpoints"].size()
+		lbl_estado.modulate = Color(0.45, 0.95, 0.55)
+		return
 
 	if ResourceLoader.exists(ESCENA_CONFIGURACION):
 		get_tree().change_scene_to_file(ESCENA_CONFIGURACION)
 	else:
-		lbl_estado.text = "Pista guardada en DatosSimulacion (%d checkpoints). Vista 3 pendiente." % validacion["checkpoints"].size()
+		lbl_estado.text = "Pista guardada (%d checkpoints). Vista 3 (Configuración) pendiente." % validacion["checkpoints"].size()
 		lbl_estado.modulate = Color(0.45, 0.85, 1.0)
