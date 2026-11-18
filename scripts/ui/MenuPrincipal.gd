@@ -1,6 +1,6 @@
 extends Control
 
-const ESCENA_SIGUIENTE := "res://escenas/creador_mapa.tscn"
+const ESCENA_SIGUIENTE := "res://Assets/Escenas/Vistas/02_creador_mapa.tscn"
 
 @onready var btn_iniciar: Button = $CenterContainer/VBoxContainer/Botones/BtnIniciar
 @onready var btn_salir: Button = $CenterContainer/VBoxContainer/Botones/BtnSalir

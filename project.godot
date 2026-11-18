@@ -15,10 +15,20 @@ run/main_scene="res://escenas/menu_principal.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+DatosSimulacion="*res://Assets/Scripts/DatosSimulacion.gd"
+
 [display]
 
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[layer_names]
+
+2d_physics/layer_1="Muros_Pasto"
+2d_physics/layer_2="Vehiculos"
+2d_physics/layer_3="Checkpoints"
 
 [physics]
 
