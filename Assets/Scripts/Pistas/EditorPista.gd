@@ -12,6 +12,7 @@ const TILE_PASTO := Vector2i(0, 0)
 const TILE_ASFALTO := Vector2i(1, 0)
 
 var herramienta_actual: Herramienta = Herramienta.PINCEL
+var grosor_pincel: int = 3
 var celdas_asfalto: Dictionary = {}
 var celda_meta: Vector2i = Vector2i(-1, -1)
 var tiene_meta: bool = false
@@ -112,6 +113,11 @@ func establecer_herramienta(h: Herramienta) -> void:
 	overlay.queue_redraw()
 
 
+func establecer_grosor(grosor: int) -> void:
+	grosor_pincel = clampi(grosor, 1, 5)
+	overlay.queue_redraw()
+
+
 func limpiar_todo() -> void:
 	celdas_asfalto.clear()
 	celda_meta = Vector2i(-1, -1)
@@ -176,8 +182,19 @@ func procesar_input_lienzo(event: InputEvent) -> void:
 					_revalidar_pista()
 
 
-func _pos_local_a_celda(pos_local: Vector2) -> Vector2i:
-	return tile_map.local_to_map(pos_local)
+func ajustar_a_contenedor(tam_contenedor: Vector2) -> void:
+	var ancho_mapa := float(DatosSimulacion.ANCHO_GRID * DatosSimulacion.TAMANIO_CELDA)
+	var alto_mapa := float(DatosSimulacion.ALTO_GRID * DatosSimulacion.TAMANIO_CELDA)
+	if ancho_mapa <= 0.0 or alto_mapa <= 0.0 or tam_contenedor.x <= 0.0 or tam_contenedor.y <= 0.0:
+		return
+	var escala := minf(tam_contenedor.x / ancho_mapa, tam_contenedor.y / alto_mapa)
+	scale = Vector2(escala, escala)
+	position = (tam_contenedor - Vector2(ancho_mapa, alto_mapa) * escala) * 0.5
+
+
+func _pos_local_a_celda(pos_en_lienzo: Vector2) -> Vector2i:
+	var pos_en_editor := (pos_en_lienzo - position) / scale
+	return tile_map.local_to_map(pos_en_editor)
 
 
 func _celda_en_tablero(c: Vector2i) -> bool:
@@ -213,6 +230,12 @@ func _aplicar_trazo_interpolado(desde: Vector2i, hasta: Vector2i, forzar_borrado
 		_revalidar_pista()
 
 
+func _obtener_rango_brocha() -> Array[int]:
+	var offset_min := -floori((grosor_pincel - 1) / 2.0)
+	var offset_max := offset_min + grosor_pincel - 1
+	return [offset_min, offset_max]
+
+
 func _aplicar_herramienta_en_celda(centro: Vector2i, forzar_borrador: bool) -> bool:
 	if not _celda_en_tablero(centro):
 		return false
@@ -220,13 +243,17 @@ func _aplicar_herramienta_en_celda(centro: Vector2i, forzar_borrador: bool) -> b
 	var es_borrador := forzar_borrador or herramienta_actual == Herramienta.BORRADOR
 	var cambio := false
 
-	# Brocha 3x3 dejando margen mínimo de 1 celda de pasto en los bordes del lienzo
-	var cx := clampi(centro.x, 2, DatosSimulacion.ANCHO_GRID - 3)
-	var cy := clampi(centro.y, 2, DatosSimulacion.ALTO_GRID - 3)
+	var rango := _obtener_rango_brocha()
+	var off_min := rango[0]
+	var off_max := rango[1]
+
+	# Deja un margen mínimo de 1 celda de pasto en los bordes del lienzo
+	var cx := clampi(centro.x, 1 - off_min, DatosSimulacion.ANCHO_GRID - 2 - off_max)
+	var cy := clampi(centro.y, 1 - off_min, DatosSimulacion.ALTO_GRID - 2 - off_max)
 	var centro_ajustado := Vector2i(cx, cy)
 
-	for dx in range(-1, 2):
-		for dy in range(-1, 2):
+	for dx in range(off_min, off_max + 1):
+		for dy in range(off_min, off_max + 1):
 			var c := centro_ajustado + Vector2i(dx, dy)
 			if es_borrador:
 				if celdas_asfalto.has(c):
@@ -331,10 +358,13 @@ func _on_overlay_draw() -> void:
 			overlay.draw_rect(rect_meta, Color(1.0, 0.85, 0.15, 0.35), true)
 			overlay.draw_rect(rect_meta, Color(1.0, 0.85, 0.15, 0.95), false, 2.0)
 		else:
-			var cx := clampi(_celda_hover.x, 2, DatosSimulacion.ANCHO_GRID - 3)
-			var cy := clampi(_celda_hover.y, 2, DatosSimulacion.ALTO_GRID - 3)
-			var top_left := Vector2(cx - 1, cy - 1) * tam
-			var rect_brocha := Rect2(top_left, Vector2(tam * 3, tam * 3))
+			var rango := _obtener_rango_brocha()
+			var off_min := rango[0]
+			var off_max := rango[1]
+			var cx := clampi(_celda_hover.x, 1 - off_min, DatosSimulacion.ANCHO_GRID - 2 - off_max)
+			var cy := clampi(_celda_hover.y, 1 - off_min, DatosSimulacion.ALTO_GRID - 2 - off_max)
+			var top_left := Vector2(cx + off_min, cy + off_min) * tam
+			var rect_brocha := Rect2(top_left, Vector2(tam * grosor_pincel, tam * grosor_pincel))
 			var col_preview := Color(0.95, 0.3, 0.3, 0.25) if herramienta_actual == Herramienta.BORRADOR else Color(0.3, 0.9, 0.45, 0.25)
 			var col_linea := Color(0.95, 0.3, 0.3, 0.9) if herramienta_actual == Herramienta.BORRADOR else Color(0.3, 0.9, 0.45, 0.9)
 			overlay.draw_rect(rect_brocha, col_preview, true)

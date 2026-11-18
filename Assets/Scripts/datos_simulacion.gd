@@ -4,7 +4,7 @@ extends Node
 ## y la configuración de los 3 vehículos entre las vistas de EDrive Lab.
 
 const TAMANIO_CELDA: int = 32
-const ANCHO_GRID: int = 36
+const ANCHO_GRID: int = 30
 const ALTO_GRID: int = 18
 
 ## Diccionario { Vector2i: true } con todas las celdas de asfalto de la pista.

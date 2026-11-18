@@ -147,36 +147,7 @@ static func _tiene_hueco_interior(celdas_asfalto: Dictionary) -> bool:
 
 
 static func _extraer_eje_central(celdas_asfalto: Dictionary) -> Dictionary:
-	var distancias: Dictionary = {}
-	var cola: Array[Vector2i] = []
-
-	for c: Vector2i in celdas_asfalto.keys():
-		var toca_pasto := false
-		for dir in VECINOS_8:
-			if not celdas_asfalto.has(c + dir):
-				toca_pasto = true
-				break
-		if toca_pasto:
-			distancias[c] = 1
-			cola.append(c)
-
-	var idx: int = 0
-	while idx < cola.size():
-		var actual := cola[idx]
-		idx += 1
-		var d: int = distancias[actual]
-		for dir in VECINOS_8:
-			var sig := actual + dir
-			if celdas_asfalto.has(sig) and not distancias.has(sig):
-				distancias[sig] = d + 1
-				cola.append(sig)
-
-	var centro: Dictionary = {}
-	for c: Vector2i in distancias.keys():
-		if distancias[c] >= 2:
-			centro[c] = true
-
-	return _adelgazar_esqueleto(centro)
+	return _adelgazar_esqueleto(celdas_asfalto)
 
 
 static func _adelgazar_esqueleto(celdas: Dictionary) -> Dictionary:

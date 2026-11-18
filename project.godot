@@ -11,16 +11,17 @@ config_version=5
 [application]
 
 config/name="Edrive-Lab"
-run/main_scene="res://escenas/menu_principal.tscn"
+run/main_scene="res://Assets/Escenas/Vistas/menu_principal.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
-DatosSimulacion="*res://Assets/Scripts/DatosSimulacion.gd"
+DatosSimulacion="*res://Assets/Scripts/datos_simulacion.gd"
 
 [display]
 
+window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

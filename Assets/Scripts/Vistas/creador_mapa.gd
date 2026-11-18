@@ -1,17 +1,20 @@
 extends Control
 
-const ESCENA_MENU := "res://escenas/menu_principal.tscn"
-const ESCENA_CONFIGURACION := "res://Assets/Escenas/Vistas/03_configuracion_carrera.tscn"
+const ESCENA_MENU := "res://Assets/Escenas/Vistas/menu_principal.tscn"
+const ESCENA_CONFIGURACION := "res://Assets/Escenas/Vistas/configuracion_carrera.tscn"
 
-@onready var btn_pincel: Button = $Layout/BarraHerramientas/Margin/HBox/BtnPincel
-@onready var btn_borrador: Button = $Layout/BarraHerramientas/Margin/HBox/BtnBorrador
-@onready var btn_meta: Button = $Layout/BarraHerramientas/Margin/HBox/BtnMeta
-@onready var btn_limpiar: Button = $Layout/BarraHerramientas/Margin/HBox/BtnLimpiar
-@onready var lbl_estado: Label = $Layout/BarraHerramientas/Margin/HBox/LblEstado
-@onready var btn_volver: Button = $Layout/BarraHerramientas/Margin/HBox/BtnVolver
-@onready var btn_confirmar: Button = $Layout/BarraHerramientas/Margin/HBox/BtnConfirmar
-@onready var area_lienzo: Control = $Layout/AreaLienzo
-@onready var editor_pista: Node2D = $Layout/AreaLienzo/EditorPista
+@onready var lbl_estado: Label = $Layout/BarraSuperior/Margin/HBox/LblEstado
+@onready var btn_volver: Button = $Layout/BarraSuperior/Margin/HBox/BtnVolver
+@onready var btn_confirmar: Button = $Layout/BarraSuperior/Margin/HBox/BtnConfirmar
+
+@onready var btn_pincel: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnPincel
+@onready var btn_borrador: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnBorrador
+@onready var btn_meta: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnMeta
+@onready var opt_grosor: OptionButton = $Layout/Cuerpo/PanelLateral/Margin/VBox/OptGrosor
+@onready var btn_limpiar: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnLimpiar
+
+@onready var area_lienzo: Control = $Layout/Cuerpo/AreaLienzo
+@onready var editor_pista: Node2D = $Layout/Cuerpo/AreaLienzo/EditorPista
 
 
 func _ready() -> void:
@@ -20,18 +23,42 @@ func _ready() -> void:
 	btn_borrador.button_group = grupo
 	btn_meta.button_group = grupo
 
+	_configurar_selector_grosor()
+
 	btn_pincel.pressed.connect(func(): editor_pista.establecer_herramienta(editor_pista.Herramienta.PINCEL))
 	btn_borrador.pressed.connect(func(): editor_pista.establecer_herramienta(editor_pista.Herramienta.BORRADOR))
 	btn_meta.pressed.connect(func(): editor_pista.establecer_herramienta(editor_pista.Herramienta.META))
+	opt_grosor.item_selected.connect(_on_grosor_seleccionado)
 	btn_limpiar.pressed.connect(_on_limpiar_pressed)
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_confirmar.pressed.connect(_on_confirmar_pressed)
 
 	area_lienzo.gui_input.connect(editor_pista.procesar_input_lienzo)
+	area_lienzo.resized.connect(_on_area_lienzo_resized)
 	editor_pista.pista_actualizada.connect(_on_pista_actualizada)
 
+	_on_area_lienzo_resized()
 	var validacion: Dictionary = editor_pista.obtener_validacion()
 	_on_pista_actualizada(validacion["valido"], validacion["mensaje"])
+
+
+func _on_area_lienzo_resized() -> void:
+	editor_pista.ajustar_a_contenedor(area_lienzo.size)
+
+
+func _configurar_selector_grosor() -> void:
+	opt_grosor.clear()
+	opt_grosor.add_item("1x1 (Fino)", 1)
+	opt_grosor.add_item("2x2", 2)
+	opt_grosor.add_item("3x3 (Estándar)", 3)
+	opt_grosor.add_item("4x4", 4)
+	opt_grosor.add_item("5x5 (Ancho)", 5)
+	opt_grosor.select(2) # 3x3 por defecto
+
+
+func _on_grosor_seleccionado(index: int) -> void:
+	var grosor := opt_grosor.get_item_id(index)
+	editor_pista.establecer_grosor(grosor)
 
 
 func _on_pista_actualizada(es_valida: bool, mensaje: String) -> void:
