@@ -11,13 +11,25 @@ config_version=5
 [application]
 
 config/name="Edrive-Lab"
+run/main_scene="res://Assets/Escenas/Vistas/menu_principal.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://Temporales/icon.svg"
+config/icon="res://App/icon.svg"
+
+[autoload]
+
+DatosSimulacion="*res://Assets/Scripts/datos_simulacion.gd"
 
 [display]
 
+window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[layer_names]
+
+2d_physics/layer_1="Muros_Pasto"
+2d_physics/layer_2="Vehiculos"
+2d_physics/layer_3="Checkpoints"
 
 [physics]
 

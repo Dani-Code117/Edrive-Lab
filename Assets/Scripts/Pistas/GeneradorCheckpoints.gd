@@ -1,0 +1,342 @@
+class_name GeneradorCheckpoints
+extends RefCounted
+
+## Valida que el circuito dibujado sea un lazo cerrado con meta y genera
+## los checkpoints invisibles ordenados estrictamente en sentido horario.
+
+const PASO_CHECKPOINT: int = 3
+const MIN_CELDAS_CIRCUITO: int = 8
+
+const VECINOS_4: Array[Vector2i] = [
+	Vector2i(1, 0),
+	Vector2i(-1, 0),
+	Vector2i(0, 1),
+	Vector2i(0, -1),
+]
+
+const VECINOS_8: Array[Vector2i] = [
+	Vector2i(0, -1),
+	Vector2i(1, -1),
+	Vector2i(1, 0),
+	Vector2i(1, 1),
+	Vector2i(0, 1),
+	Vector2i(-1, 1),
+	Vector2i(-1, 0),
+	Vector2i(-1, -1),
+]
+
+
+static func validar_y_generar(
+	celdas_asfalto: Dictionary,
+	celda_meta: Vector2i,
+	tiene_meta: bool,
+	tamanio_celda: int = 32
+) -> Dictionary:
+	if celdas_asfalto.size() < 9:
+		return _error("Dibuja un circuito cerrado con la brocha 3x3.")
+
+	if not tiene_meta or not celdas_asfalto.has(celda_meta):
+		return _error("Coloca la línea de meta sobre una celda de asfalto.")
+
+	# 1. Verificar que todo el asfalto esté conectado en un solo componente.
+	var visitadas := _bfs_conectividad(celdas_asfalto, celda_meta)
+	if visitadas.size() != celdas_asfalto.size():
+		return _error("Toda la pista debe estar conectada en un solo circuito.")
+
+	# 2. Verificar lazo cerrado mediante flood fill del pasto exterior.
+	if not _tiene_hueco_interior(celdas_asfalto):
+		return _error("El circuito debe formar un lazo cerrado alrededor de un área interior.")
+
+	# 3. Extraer eje central (Distance Transform + adelgazamiento).
+	var eje_central := _extraer_eje_central(celdas_asfalto)
+	if eje_central.size() < MIN_CELDAS_CIRCUITO:
+		return _error("El circuito es demasiado pequeño o estrecho.")
+
+	# 4. Trazar ciclo desde la celda central más cercana a la meta.
+	var inicio := _celda_mas_cercana(eje_central, celda_meta)
+	var ciclo := _trazar_ciclo(eje_central, inicio)
+	if ciclo.size() < MIN_CELDAS_CIRCUITO:
+		return _error("Asegúrate de que la meta esté sobre el lazo cerrado del circuito.")
+
+	# 5. Ordenar estrictamente en sentido horario (producto cruzado positivo en Godot 2D).
+	ciclo = _asegurar_sentido_horario(ciclo)
+
+	# 6. Calcular el radio local de pista en cada punto del eje central.
+	var radios_eje := _calcular_radios_eje(celdas_asfalto, ciclo, tamanio_celda)
+
+	# 7. Seleccionar 1 de cada N celdas para los checkpoints (empezando adelante de la meta).
+	var checkpoints := _submuestrear_checkpoints(ciclo, PASO_CHECKPOINT)
+	if checkpoints.size() < 3:
+		return _error("El circuito necesita ser un poco más largo para generar checkpoints.")
+
+	var pos_meta := Vector2(celda_meta) * tamanio_celda + Vector2.ONE * (tamanio_celda * 0.5)
+	var pos_cp0 := Vector2(checkpoints[0]) * tamanio_celda + Vector2.ONE * (tamanio_celda * 0.5)
+	var rotacion_salida := (pos_cp0 - pos_meta).angle()
+
+	return {
+		"valido": true,
+		"mensaje": "¡Pista válida! (%d checkpoints en sentido horario)" % checkpoints.size(),
+		"checkpoints": checkpoints,
+		"eje_central": ciclo,
+		"radios_eje": radios_eje,
+		"rotacion_salida": rotacion_salida,
+	}
+
+
+static func _error(msg: String) -> Dictionary:
+	return {
+		"valido": false,
+		"mensaje": msg,
+		"checkpoints": [] as Array[Vector2i],
+		"eje_central": [] as Array[Vector2i],
+		"radios_eje": [] as Array[float],
+		"rotacion_salida": 0.0,
+	}
+
+
+static func _bfs_conectividad(celdas: Dictionary, origen: Vector2i) -> Dictionary:
+	var visitadas: Dictionary = {origen: true}
+	var cola: Array[Vector2i] = [origen]
+	var idx: int = 0
+
+	while idx < cola.size():
+		var actual := cola[idx]
+		idx += 1
+		for dir in VECINOS_4:
+			var sig := actual + dir
+			if celdas.has(sig) and not visitadas.has(sig):
+				visitadas[sig] = true
+				cola.append(sig)
+
+	return visitadas
+
+
+static func _tiene_hueco_interior(celdas_asfalto: Dictionary) -> bool:
+	var min_x := 999999
+	var max_x := -999999
+	var min_y := 999999
+	var max_y := -999999
+
+	for c: Vector2i in celdas_asfalto.keys():
+		min_x = mini(min_x, c.x)
+		max_x = maxi(max_x, c.x)
+		min_y = mini(min_y, c.y)
+		max_y = maxi(max_y, c.y)
+
+	min_x -= 1
+	max_x += 1
+	min_y -= 1
+	max_y += 1
+
+	var inicio_ext := Vector2i(min_x, min_y)
+	var exterior: Dictionary = {inicio_ext: true}
+	var cola: Array[Vector2i] = [inicio_ext]
+	var idx: int = 0
+
+	while idx < cola.size():
+		var actual := cola[idx]
+		idx += 1
+		for dir in VECINOS_4:
+			var sig := actual + dir
+			if sig.x < min_x or sig.x > max_x or sig.y < min_y or sig.y > max_y:
+				continue
+			if not celdas_asfalto.has(sig) and not exterior.has(sig):
+				exterior[sig] = true
+				cola.append(sig)
+
+	for x in range(min_x, max_x + 1):
+		for y in range(min_y, max_y + 1):
+			var p := Vector2i(x, y)
+			if not celdas_asfalto.has(p) and not exterior.has(p):
+				return true
+
+	return false
+
+
+static func _calcular_radios_eje(
+	celdas_asfalto: Dictionary,
+	ciclo: Array[Vector2i],
+	tamanio_celda: int
+) -> Array[float]:
+	var distancias: Dictionary = {}
+	var cola: Array[Vector2i] = []
+
+	for c: Vector2i in celdas_asfalto.keys():
+		var toca_pasto := false
+		for dir in VECINOS_8:
+			if not celdas_asfalto.has(c + dir):
+				toca_pasto = true
+				break
+		if toca_pasto:
+			distancias[c] = 1
+			cola.append(c)
+
+	var idx: int = 0
+	while idx < cola.size():
+		var actual := cola[idx]
+		idx += 1
+		var d: int = distancias[actual]
+		for dir in VECINOS_8:
+			var sig := actual + dir
+			if celdas_asfalto.has(sig) and not distancias.has(sig):
+				distancias[sig] = d + 1
+				cola.append(sig)
+
+	var radios: Array[float] = []
+	for c in ciclo:
+		var d: int = distancias.get(c, 1)
+		radios.append((float(d) - 0.5) * float(tamanio_celda))
+	return radios
+
+
+static func _extraer_eje_central(celdas_asfalto: Dictionary) -> Dictionary:
+	return _adelgazar_esqueleto(celdas_asfalto)
+
+
+static func _adelgazar_esqueleto(celdas: Dictionary) -> Dictionary:
+	var res := celdas.duplicate()
+	var cambio := true
+	var iter := 0
+
+	while cambio and iter < 20:
+		cambio = false
+		iter += 1
+		for paso in [0, 1]:
+			var a_borrar: Array[Vector2i] = []
+			for p: Vector2i in res.keys():
+				if _puede_adelgazar(res, p, paso):
+					a_borrar.append(p)
+			if a_borrar.size() > 0:
+				cambio = true
+				for p in a_borrar:
+					res.erase(p)
+
+	return res
+
+
+static func _puede_adelgazar(celdas: Dictionary, p: Vector2i, paso: int) -> bool:
+	# Vecinos en orden horario empezando desde arriba (N, NE, E, SE, S, SO, O, NO)
+	var v: Array[int] = []
+	var negros := 0
+	for dir in VECINOS_8:
+		var ocupado := 1 if celdas.has(p + dir) else 0
+		v.append(ocupado)
+		negros += ocupado
+
+	if negros < 2 or negros > 6:
+		return false
+
+	# Transiciones 0 -> 1 alrededor del píxel
+	var transiciones := 0
+	for i in range(8):
+		if v[i] == 0 and v[(i + 1) % 8] == 1:
+			transiciones += 1
+	if transiciones != 1:
+		return false
+
+	# v[0]=N, v[2]=E, v[4]=S, v[6]=O
+	if paso == 0:
+		if v[0] * v[2] * v[4] != 0:
+			return false
+		if v[2] * v[4] * v[6] != 0:
+			return false
+	else:
+		if v[0] * v[2] * v[6] != 0:
+			return false
+		if v[0] * v[4] * v[6] != 0:
+			return false
+
+	return true
+
+
+static func _celda_mas_cercana(celdas: Dictionary, objetivo: Vector2i) -> Vector2i:
+	var mejor := objetivo
+	var mejor_dist := INF
+	for c: Vector2i in celdas.keys():
+		var d := Vector2(c).distance_squared_to(Vector2(objetivo))
+		if d < mejor_dist:
+			mejor_dist = d
+			mejor = c
+	return mejor
+
+
+static func _trazar_ciclo(eje: Dictionary, inicio: Vector2i) -> Array[Vector2i]:
+	if not eje.has(inicio):
+		return []
+
+	var ruta: Array[Vector2i] = [inicio]
+	var visitadas: Dictionary = {inicio: true}
+	var actual := inicio
+
+	while true:
+		var siguiente := Vector2i(-99999, -99999)
+		var encontrado := false
+
+		# Priorizar vecinos ortogonales (4-conectados) antes que diagonales
+		for dir in VECINOS_4:
+			var cand := actual + dir
+			if eje.has(cand) and not visitadas.has(cand):
+				siguiente = cand
+				encontrado = true
+				break
+
+		if not encontrado:
+			for dir in VECINOS_8:
+				var cand := actual + dir
+				if eje.has(cand) and not visitadas.has(cand):
+					siguiente = cand
+					encontrado = true
+					break
+
+		if not encontrado:
+			break
+
+		ruta.append(siguiente)
+		visitadas[siguiente] = true
+		actual = siguiente
+
+		# Cerrar el ciclo si volvemos a estar adyacentes al inicio tras avanzar lo suficiente
+		if ruta.size() >= MIN_CELDAS_CIRCUITO:
+			var dist_inicio := actual - inicio
+			if absi(dist_inicio.x) <= 1 and absi(dist_inicio.y) <= 1:
+				return ruta
+
+	return []
+
+
+static func _asegurar_sentido_horario(ciclo: Array[Vector2i]) -> Array[Vector2i]:
+	if ciclo.size() < 3:
+		return ciclo
+
+	var centroide := Vector2.ZERO
+	for p in ciclo:
+		centroide += Vector2(p)
+	centroide /= float(ciclo.size())
+
+	var suma_cruz := 0.0
+	var n := ciclo.size()
+	for i in range(n):
+		var p1 := Vector2(ciclo[i]) - centroide
+		var p2 := Vector2(ciclo[(i + 1) % n]) - centroide
+		suma_cruz += p1.x * p2.y - p1.y * p2.x
+
+	# En Godot 2D (+X derecha, +Y abajo), producto cruzado positivo = sentido horario.
+	if suma_cruz < 0.0:
+		var invertido: Array[Vector2i] = [ciclo[0]]
+		for i in range(n - 1, 0, -1):
+			invertido.append(ciclo[i])
+		return invertido
+
+	return ciclo
+
+
+static func _submuestrear_checkpoints(ciclo: Array[Vector2i], paso: int) -> Array[Vector2i]:
+	var resultado: Array[Vector2i] = []
+	var n := ciclo.size()
+	var i := paso
+	while i < n:
+		resultado.append(ciclo[i])
+		i += paso
+	if resultado.is_empty() and n >= 3:
+		resultado.append(ciclo[n / 2])
+	return resultado
