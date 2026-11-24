@@ -1,6 +1,102 @@
 [gd_scene format=3 uid="uid://dlvwis0pu2cxc"]
 
 [ext_resource type="Script" uid="uid://6p7ypmah3ilv" path="res://Assets/Scripts/Vistas/menu_principal.gd" id="1_7fkdi"]
+[ext_resource type="Theme" uid="uid://dno4yl8ajulop" path="res://Assets/Temas/tema_edrive.tres" id="1_s3e55"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wn8aj"]
+bg_color = Color(0.102, 0.125, 0.176, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24, 0.32, 0.46, 0.85)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 18
+shadow_offset = Vector2(0, 8)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rm8ic"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.14, 0.48, 0.88, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.7, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gdnt7"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.1, 0.38, 0.74, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.7, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gisst"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.2, 0.56, 0.96, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.55, 0.82, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4xyk3"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.18, 0.13, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.22, 0.26, 0.85)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rsr7q"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.28, 0.16, 0.2, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.75, 0.32, 0.38, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="MenuPrincipal" type="Control" unique_id=2092458561]
 layout_mode = 3
@@ -9,6 +105,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("1_s3e55")
 script = ExtResource("1_7fkdi")
 
 [node name="Fondo" type="ColorRect" parent="." unique_id=842786245]
@@ -18,37 +115,94 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.0823529, 0.101961, 0.141176, 1)
+color = Color(0.067, 0.086, 0.125, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1046808083]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=252120004]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 32
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=817974898]
+[node name="CenterContainer" type="CenterContainer" parent="MarginContainer" unique_id=180111095]
 layout_mode = 2
-theme_override_constants/separation = 32
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
-[node name="TituloProyecto" type="Label" parent="CenterContainer/VBoxContainer" unique_id=881922051]
+[node name="PanelCard" type="PanelContainer" parent="MarginContainer/CenterContainer" unique_id=718055363]
+custom_minimum_size = Vector2(440, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 48
-text = "Edrive-Lab"
+theme_override_styles/panel = SubResource("StyleBoxFlat_wn8aj")
+
+[node name="CardMargin" type="MarginContainer" parent="MarginContainer/CenterContainer/PanelCard" unique_id=258488103]
+layout_mode = 2
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 34
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 34
+
+[node name="VBoxPrincipal" type="VBoxContainer" parent="MarginContainer/CenterContainer/PanelCard/CardMargin" unique_id=1138930793]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="HeaderBox" type="VBoxContainer" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal" unique_id=1354183166]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BadgeLabel" type="Label" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/HeaderBox" unique_id=170862610]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.78, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "LABORATORIO EDUCATIVO DE IA Y CONDUCCIÓN AUTÓNOMA"
 horizontal_alignment = 1
 
-[node name="Botones" type="VBoxContainer" parent="CenterContainer/VBoxContainer" unique_id=298048901]
+[node name="TituloProyecto" type="Label" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/HeaderBox" unique_id=362165568]
 layout_mode = 2
-size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.96, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 44
+text = "EDrive Lab"
+horizontal_alignment = 1
+
+[node name="Subtitulo" type="Label" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/HeaderBox" unique_id=2060197990]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 14
+text = "Diseña tu circuito, construye la pista y personaliza 3 vehículos con IA"
+horizontal_alignment = 1
+
+[node name="Separador" type="ColorRect" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal" unique_id=1661071212]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.24, 0.65, 0.95, 0.65)
+
+[node name="Botones" type="VBoxContainer" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal" unique_id=1504211579]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="BtnIniciar" type="Button" parent="CenterContainer/VBoxContainer/Botones" unique_id=1410226306]
-custom_minimum_size = Vector2(220, 48)
+[node name="BtnIniciar" type="Button" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/Botones" unique_id=1523834110]
+custom_minimum_size = Vector2(340, 48)
 layout_mode = 2
-text = "Iniciar"
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_rm8ic")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gdnt7")
+theme_override_styles/hover = SubResource("StyleBoxFlat_gisst")
+text = "Iniciar Laboratorio"
 
-[node name="BtnSalir" type="Button" parent="CenterContainer/VBoxContainer/Botones" unique_id=1073450432]
-custom_minimum_size = Vector2(220, 48)
+[node name="BtnSalir" type="Button" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/Botones" unique_id=477301991]
+custom_minimum_size = Vector2(340, 44)
 layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_4xyk3")
+theme_override_styles/hover = SubResource("StyleBoxFlat_rsr7q")
 text = "Salir"
+
+[node name="FooterLabel" type="Label" parent="MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal" unique_id=1766349188]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.52, 0.62, 1)
+theme_override_font_sizes/font_size = 12
+text = "Menú → Diseñador → Constructor → Personalización • MIT License"
+horizontal_alignment = 1

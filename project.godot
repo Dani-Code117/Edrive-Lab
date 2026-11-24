@@ -18,12 +18,17 @@ config/icon="res://App/icon.svg"
 [autoload]
 
 DatosSimulacion="*res://Assets/Scripts/datos_simulacion.gd"
+MCPRuntimeServer="*res://addons/godot_mcp_toolkit/runtime/mcp_runtime_server.gd"
 
 [display]
 
 window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp_toolkit/plugin.cfg")
 
 [layer_names]
 
