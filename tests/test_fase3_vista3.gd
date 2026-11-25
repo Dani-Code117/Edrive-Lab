@@ -134,6 +134,58 @@ func _test_a_checkpoints_escenas_y_tema(ds: Node) -> void:
 		)
 	_assert_true(ds.TAMANIO_CELDA == 16, "DatosSimulacion.TAMANIO_CELDA == 16")
 
+	# Regresión Tier 5: lazos cerrados con espolones (derecha, izquierda, arriba, abajo) y meta en espolón
+	var base_lazo: Dictionary = {}
+	for x in range(8, 27):
+		for y in range(5, 8):
+			base_lazo[Vector2i(x, y)] = true
+		for y in range(17, 20):
+			base_lazo[Vector2i(x, y)] = true
+	for y in range(5, 20):
+		for x in range(8, 11):
+			base_lazo[Vector2i(x, y)] = true
+		for x in range(24, 27):
+			base_lazo[Vector2i(x, y)] = true
+
+	var espolones: Dictionary = {
+		"derecha": [],
+		"izquierda": [],
+		"arriba": [],
+		"abajo": [],
+	}
+	for x in range(27, 34):
+		for y in range(11, 14):
+			espolones["derecha"].append(Vector2i(x, y))
+	for x in range(2, 8):
+		for y in range(11, 14):
+			espolones["izquierda"].append(Vector2i(x, y))
+	for x in range(16, 19):
+		for y in range(1, 5):
+			espolones["arriba"].append(Vector2i(x, y))
+	for x in range(16, 19):
+		for y in range(20, 24):
+			espolones["abajo"].append(Vector2i(x, y))
+
+	for dir_nombre in espolones.keys():
+		var celdas_esp: Dictionary = base_lazo.duplicate()
+		for c_esp: Vector2i in espolones[dir_nombre]:
+			celdas_esp[c_esp] = true
+		var res_esp := GeneradorCheckpoints.validar_y_generar(celdas_esp, Vector2i(25, 8), true)
+		_assert_true(
+			res_esp.get("valido", false) and res_esp.get("checkpoints", []).size() >= 3,
+			"Lazo cerrado con espolon %s valida correctamente (%d cps)" % [dir_nombre, res_esp.get("checkpoints", []).size()]
+		)
+
+	var celdas_meta_esp: Dictionary = base_lazo.duplicate()
+	for c_esp: Vector2i in espolones["derecha"]:
+		celdas_meta_esp[c_esp] = true
+	var res_meta_esp := GeneradorCheckpoints.validar_y_generar(celdas_meta_esp, Vector2i(30, 12), true)
+	_assert_true(
+		not res_meta_esp.get("valido", true)
+		and res_meta_esp.get("mensaje", "") == "Asegúrate de que la meta esté sobre el lazo cerrado del circuito.",
+		"Meta colocada sobre espolon muerto falla con mensaje esperado"
+	)
+
 
 func _test_b_minimapa_vacio_y_poblado(ds: Node) -> void:
 	print("--- Test (b): Minimapa Pista Confirmada (vacio y poblado) ---")
@@ -320,6 +372,43 @@ func _test_d_persistencia_botones_y_presets(ds: Node) -> void:
 
 	vp.queue_free()
 	await _esperar_frames(2)
+
+	# Regresión Tier 5: sanitización de NaN/INF/fuera de rango en DatosSimulacion.config_vehiculos al abrir Vista 3
+	var cfg_backup: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.config_vehiculos[0]["velocidad_maxima"] = NAN
+	ds.config_vehiculos[0]["aceleracion"] = INF
+	ds.config_vehiculos[0]["nivel_ia"] = -5
+
+	var vp_nan := SubViewport.new()
+	vp_nan.size = Vector2i(1280, 720)
+	root.add_child(vp_nan)
+
+	var vista_nan := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_nan.add_child(vista_nan)
+	await _esperar_frames(3)
+
+	var vel_cargada: Variant = ds.config_vehiculos[0]["velocidad_maxima"]
+	var acel_cargada: Variant = ds.config_vehiculos[0]["aceleracion"]
+	_assert_true(
+		(vel_cargada is float or vel_cargada is int) and is_finite(float(vel_cargada))
+		and float(vel_cargada) >= 0.0 and float(vel_cargada) <= 1.0
+		and (acel_cargada is float or acel_cargada is int) and is_finite(float(acel_cargada))
+		and float(acel_cargada) >= 0.0 and float(acel_cargada) <= 1.0,
+		"Vista 3 sanea velocidad_maxima=NAN y aceleracion=INF a finitos en [0.0, 1.0] al cargar"
+	)
+
+	vista_nan._guardar_configuraciones()
+	var vel_guardada: Variant = ds.config_vehiculos[0]["velocidad_maxima"]
+	var ia_guardado: int = int(ds.config_vehiculos[0]["nivel_ia"])
+	_assert_true(
+		is_finite(float(vel_guardada)) and float(vel_guardada) >= 0.0 and float(vel_guardada) <= 1.0
+		and ia_guardado >= 1 and ia_guardado <= 10,
+		"Vista 3 _guardar_configuraciones() mantiene velocidad_maxima finita en [0,1] y nivel_ia en [1,10]"
+	)
+
+	vp_nan.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_backup
 
 
 func _test_e_layout_responsivo_sin_solapamientos(ds: Node) -> void:

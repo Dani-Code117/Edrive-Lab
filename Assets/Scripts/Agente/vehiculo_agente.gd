@@ -92,6 +92,11 @@ func reiniciar_estado(pos: Vector2, rot: float, cant_checkpoints: int = 0) -> vo
 	checkpoints_cruzados = 0
 	vuelta_actual = 1
 	tiempo_sin_checkpoint = 0.0
+	ultima_aceleracion_ia = 0.0
+	ultimo_giro_ia = 0.0
+	if lecturas_sensores.size() != 7:
+		lecturas_sensores.resize(7)
+	lecturas_sensores.fill(1.0)
 	if sprite != null:
 		sprite.modulate = color_vehiculo
 
@@ -176,7 +181,8 @@ func _physics_process(delta: float) -> void:
 		if not is_finite(tiempo_sin_checkpoint) or tiempo_sin_checkpoint < 0.0:
 			tiempo_sin_checkpoint = 0.0
 		tiempo_sin_checkpoint += delta
-		if tiempo_sin_checkpoint >= tiempo_max_sin_checkpoint:
+		var max_sin_cp := tiempo_max_sin_checkpoint if (is_finite(tiempo_max_sin_checkpoint) and tiempo_max_sin_checkpoint >= 0.0) else 4.0
+		if tiempo_sin_checkpoint >= max_sin_cp:
 			_marcar_chocado("Atascado")
 			return
 

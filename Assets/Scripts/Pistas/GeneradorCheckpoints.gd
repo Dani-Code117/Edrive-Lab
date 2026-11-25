@@ -47,13 +47,20 @@ static func validar_y_generar(
 	if not _tiene_hueco_interior(celdas_asfalto):
 		return _error("El circuito debe formar un lazo cerrado alrededor de un área interior.")
 
-	# 3. Extraer eje central (Distance Transform + adelgazamiento).
-	var eje_central := _extraer_eje_central(celdas_asfalto)
+	# 3. Extraer eje central (Distance Transform + adelgazamiento) y podar espolones muertos.
+	var eje_bruto := _extraer_eje_central(celdas_asfalto)
+	var eje_central := _podar_espolones(eje_bruto)
 	if eje_central.size() < MIN_CELDAS_CIRCUITO:
 		return _error("El circuito es demasiado pequeño o estrecho.")
 
 	# 4. Trazar ciclo desde la celda central más cercana a la meta.
+	var inicio_bruto := _celda_mas_cercana(eje_bruto, celda_meta)
 	var inicio := _celda_mas_cercana(eje_central, celda_meta)
+	var dist_bruto := Vector2(celda_meta).distance_squared_to(Vector2(inicio_bruto))
+	var dist_poda := Vector2(celda_meta).distance_squared_to(Vector2(inicio))
+	if dist_poda > dist_bruto:
+		return _error("Asegúrate de que la meta esté sobre el lazo cerrado del circuito.")
+
 	var ciclo := _trazar_ciclo(eje_central, inicio)
 	if ciclo.size() < MIN_CELDAS_CIRCUITO:
 		return _error("Asegúrate de que la meta esté sobre el lazo cerrado del circuito.")
@@ -214,6 +221,26 @@ static func _adelgazar_esqueleto(celdas: Dictionary) -> Dictionary:
 	return res
 
 
+static func _podar_espolones(eje: Dictionary) -> Dictionary:
+	var res := eje.duplicate()
+	var cambio := true
+	while cambio:
+		cambio = false
+		var a_borrar: Array[Vector2i] = []
+		for p: Vector2i in res.keys():
+			var vecinos := 0
+			for dir in VECINOS_8:
+				if res.has(p + dir):
+					vecinos += 1
+			if vecinos <= 1:
+				a_borrar.append(p)
+		if not a_borrar.is_empty():
+			cambio = true
+			for p in a_borrar:
+				res.erase(p)
+	return res
+
+
 static func _puede_adelgazar(celdas: Dictionary, p: Vector2i, paso: int) -> bool:
 	# Vecinos en orden horario empezando desde arriba (N, NE, E, SE, S, SO, O, NO)
 	var v: Array[int] = []
@@ -266,42 +293,50 @@ static func _trazar_ciclo(eje: Dictionary, inicio: Vector2i) -> Array[Vector2i]:
 
 	var ruta: Array[Vector2i] = [inicio]
 	var visitadas: Dictionary = {inicio: true}
-	var actual := inicio
-
-	while true:
-		var siguiente := Vector2i(-99999, -99999)
-		var encontrado := false
-
-		# Priorizar vecinos ortogonales (4-conectados) antes que diagonales
-		for dir in VECINOS_4:
-			var cand := actual + dir
-			if eje.has(cand) and not visitadas.has(cand):
-				siguiente = cand
-				encontrado = true
-				break
-
-		if not encontrado:
-			for dir in VECINOS_8:
-				var cand := actual + dir
-				if eje.has(cand) and not visitadas.has(cand):
-					siguiente = cand
-					encontrado = true
-					break
-
-		if not encontrado:
-			break
-
-		ruta.append(siguiente)
-		visitadas[siguiente] = true
-		actual = siguiente
-
-		# Cerrar el ciclo si volvemos a estar adyacentes al inicio tras avanzar lo suficiente
-		if ruta.size() >= MIN_CELDAS_CIRCUITO:
-			var dist_inicio := actual - inicio
-			if absi(dist_inicio.x) <= 1 and absi(dist_inicio.y) <= 1:
-				return ruta
-
+	var pasos_restantes := [maxi(eje.size() * 16, 512)]
+	if _dfs_ciclo(eje, inicio, inicio, ruta, visitadas, pasos_restantes):
+		return ruta
 	return []
+
+
+static func _dfs_ciclo(
+	eje: Dictionary,
+	inicio: Vector2i,
+	actual: Vector2i,
+	ruta: Array[Vector2i],
+	visitadas: Dictionary,
+	pasos_restantes: Array
+) -> bool:
+	if pasos_restantes[0] <= 0:
+		return false
+	pasos_restantes[0] -= 1
+
+	# Cerrar el ciclo si volvemos a estar adyacentes al inicio tras avanzar lo suficiente
+	if ruta.size() >= MIN_CELDAS_CIRCUITO:
+		var dist_inicio := actual - inicio
+		if absi(dist_inicio.x) <= 1 and absi(dist_inicio.y) <= 1:
+			return true
+
+	# Priorizar vecinos ortogonales (4-conectados) antes que diagonales
+	var candidatos: Array[Vector2i] = []
+	for dir in VECINOS_4:
+		var cand := actual + dir
+		if eje.has(cand) and not visitadas.has(cand):
+			candidatos.append(cand)
+	for dir in VECINOS_8:
+		var cand := actual + dir
+		if eje.has(cand) and not visitadas.has(cand) and not candidatos.has(cand):
+			candidatos.append(cand)
+
+	for cand in candidatos:
+		ruta.append(cand)
+		visitadas[cand] = true
+		if _dfs_ciclo(eje, inicio, cand, ruta, visitadas, pasos_restantes):
+			return true
+		visitadas.erase(cand)
+		ruta.pop_back()
+
+	return false
 
 
 static func _asegurar_sentido_horario(ciclo: Array[Vector2i]) -> Array[Vector2i]:

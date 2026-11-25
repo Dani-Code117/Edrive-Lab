@@ -607,5 +607,40 @@ func _test_h_resistencia_nan_y_no_finitos() -> void:
 		"Test (h4): rotation=NAN y global_position=(NAN,NAN) se recuperan a valores finitos"
 	)
 
+	# (h5) reiniciar_estado() limpia ultima_aceleracion_ia, ultimo_giro_ia y lecturas_sensores; tiempo_max_sin_checkpoint=NAN usa fallback 4.0s
+	car.ultima_aceleracion_ia = 0.99
+	car.ultimo_giro_ia = -0.88
+	car.lecturas_sensores = PackedFloat64Array([0.1, 0.2, 0.3])
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 3)
+	var sensores_reiniciados := car.lecturas_sensores.size() == 7
+	if sensores_reiniciados:
+		for s in car.lecturas_sensores:
+			if not is_equal_approx(s, 1.0):
+				sensores_reiniciados = false
+				break
+	_assert_true(
+		is_equal_approx(car.ultima_aceleracion_ia, 0.0)
+		and is_equal_approx(car.ultimo_giro_ia, 0.0)
+		and sensores_reiniciados,
+		"Test (h5): reiniciar_estado() reinicia ultima_aceleracion_ia, ultimo_giro_ia y 7 lecturas_sensores a 1.0"
+	)
+
+	car.tiempo_max_sin_checkpoint = NAN
+	car.cerebro = MockCerebro.new(0.0, 0.0)
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 3)
+	for _i in range(230):
+		car._physics_process(1.0 / 60.0)
+	_assert_true(
+		not car.esta_chocado,
+		"Test (h5): con tiempo_max_sin_checkpoint=NAN aun no choca a los 3.83s"
+	)
+	for _i in range(25):
+		car._physics_process(1.0 / 60.0)
+	_assert_true(
+		car.esta_chocado and car.motivo_choque == "Atascado",
+		"Test (h5): con tiempo_max_sin_checkpoint=NAN activa motivo='Atascado' al superar 4.0s"
+	)
+	car.tiempo_max_sin_checkpoint = 4.0
+
 	mundo.queue_free()
 	await _esperar_fisicas(1)

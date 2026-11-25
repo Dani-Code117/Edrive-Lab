@@ -217,7 +217,10 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 	for atr in ATRIBUTOS_FISICOS:
 		var clave: String = atr["clave"]
 		var etiqueta: String = atr["etiqueta"]
-		var valor_inicial: float = clampf(float(cfg.get(clave, 0.5)), 0.0, 1.0)
+		var raw_val: Variant = cfg.get(clave, 0.5)
+		var valor_inicial: float = _sanitizar_normalizado(raw_val, 0.5)
+		if not (raw_val is float or raw_val is int) or not is_finite(float(raw_val)):
+			DatosSimulacion.config_vehiculos[indice][clave] = valor_inicial
 
 		var fila := VBoxContainer.new()
 		fila.add_theme_constant_override("separation", 2)
@@ -260,7 +263,7 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		var texto := "Nivel %d — %s" % [info_ia["nivel"], info_ia["titulo"]]
 		opt_ia.add_item(texto, info_ia["nivel"])
 
-	var nivel_actual: int = clampi(int(cfg.get("nivel_ia", 5)), 1, 10)
+	var nivel_actual: int = _sanitizar_nivel_ia(cfg.get("nivel_ia", 5), 5)
 	opt_ia.select(nivel_actual - 1)
 	_actualizar_estado_ia(nivel_actual, lbl_desc_ia, lbl_estado_ia)
 
@@ -301,7 +304,7 @@ func _guardar_configuraciones() -> void:
 			var clave: String = atr["clave"]
 			if sliders.has(clave):
 				var slider: HSlider = sliders[clave]
-				var valor := clampf(float(slider.value), 0.0, 1.0)
+				var valor := _sanitizar_normalizado(slider.value, 0.5)
 				DatosSimulacion.config_vehiculos[i][clave] = valor
 				if lbl_valores.has(clave):
 					var lbl_val: Label = lbl_valores[clave]
@@ -309,9 +312,31 @@ func _guardar_configuraciones() -> void:
 
 		var opt_ia: OptionButton = ctrl["opt_ia"]
 		if opt_ia.selected >= 0:
-			var nivel := clampi(opt_ia.get_item_id(opt_ia.selected), 1, 10)
+			var nivel := _sanitizar_nivel_ia(opt_ia.get_item_id(opt_ia.selected), 5)
 			DatosSimulacion.config_vehiculos[i]["nivel_ia"] = nivel
 			_actualizar_estado_ia(nivel, ctrl["lbl_desc_ia"], ctrl["lbl_estado_ia"])
+
+
+static func _sanitizar_normalizado(valor: Variant, defecto: float = 0.5) -> float:
+	var num := defecto
+	if valor is float or valor is int:
+		num = float(valor)
+	elif valor is String and (valor as String).is_valid_float():
+		num = float(valor)
+	if not is_finite(num):
+		num = defecto
+	return clampf(num, 0.0, 1.0)
+
+
+static func _sanitizar_nivel_ia(valor: Variant, defecto: int = 5) -> int:
+	var num := float(defecto)
+	if valor is float or valor is int:
+		num = float(valor)
+	elif valor is String and (valor as String).is_valid_float():
+		num = float(valor)
+	if not is_finite(num):
+		num = float(defecto)
+	return clampi(int(roundf(num)), 1, 10)
 
 
 func _obtener_textura_coche() -> Texture2D:
