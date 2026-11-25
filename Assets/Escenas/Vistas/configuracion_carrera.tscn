@@ -4,6 +4,18 @@
 [ext_resource type="Theme" uid="uid://c71hcv2mlhdid" path="res://Assets/Temas/tema_telemetria.tres" id="1_wnyxj"]
 [ext_resource type="Script" uid="uid://dkw6gljnij0u4" path="res://Assets/Scripts/UI/boton_animado.gd" id="3_1uoyc"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_barra"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.071, 0.094, 0.133, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.165, 0.212, 0.282, 1)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_verde_normal"]
 content_margin_left = 14.0
 content_margin_top = 6.0
@@ -31,6 +43,86 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.42, 0.9, 0.58, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tarjeta"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.071, 0.094, 0.133, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.165, 0.212, 0.282, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preview"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.045, 0.06, 0.09, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.165, 0.212, 0.282, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opt_normal"]
+content_margin_left = 10.0
+content_margin_top = 5.0
+content_margin_right = 10.0
+content_margin_bottom = 5.0
+bg_color = Color(0.071, 0.094, 0.133, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.165, 0.212, 0.282, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opt_hover"]
+content_margin_left = 10.0
+content_margin_top = 5.0
+content_margin_right = 10.0
+content_margin_bottom = 5.0
+bg_color = Color(0.094, 0.133, 0.196, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.898, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opt_pressed"]
+content_margin_left = 10.0
+content_margin_top = 5.0
+content_margin_right = 10.0
+content_margin_bottom = 5.0
+bg_color = Color(0.059, 0.161, 0.22, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.898, 1, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -66,38 +158,42 @@ grow_vertical = 2
 theme_override_constants/separation = 0
 
 [node name="BarraSuperior" type="PanelContainer" parent="Layout" unique_id=1548818566]
-custom_minimum_size = Vector2(0, 56)
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_barra")
 
 [node name="Margin" type="MarginContainer" parent="Layout/BarraSuperior" unique_id=920068188]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 4
 
 [node name="HBox" type="HBoxContainer" parent="Layout/BarraSuperior/Margin" unique_id=316750033]
 layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="BtnVolver" type="Button" parent="Layout/BarraSuperior/Margin/HBox" unique_id=1797426384]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 18
 text = "← Editar Mapa"
 script = ExtResource("3_1uoyc")
 
 [node name="LblTitulo" type="Label" parent="Layout/BarraSuperior/Margin/HBox" unique_id=1232574096]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "Personalización de Vehículos"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="BtnIniciar" type="Button" parent="Layout/BarraSuperior/Margin/HBox" unique_id=605652645]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("StyleBoxFlat_verde_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_verde_hover")
 text = "INICIAR SIMULACIÓN →"
@@ -106,274 +202,405 @@ script = ExtResource("3_1uoyc")
 [node name="Contenido" type="MarginContainer" parent="Layout" unique_id=314234883]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
 
-[node name="VBox" type="VBoxContainer" parent="Layout/Contenido" unique_id=1184068949]
+[node name="ScrollArea" type="ScrollContainer" parent="Layout/Contenido" unique_id=1184068949]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="CuerpoPrincipal" type="HBoxContainer" parent="Layout/Contenido/ScrollArea" unique_id=1921304401]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 14
 
-[node name="Tarjetas" type="HBoxContainer" parent="Layout/Contenido/VBox" unique_id=1376224782]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 20
-
-[node name="TarjetaRojo" type="PanelContainer" parent="Layout/Contenido/VBox/Tarjetas" unique_id=2011305340]
+[node name="PanelMinimapa" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal" unique_id=1921304402]
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+size_flags_stretch_ratio = 0.28
+theme_override_styles/panel = SubResource("StyleBoxFlat_tarjeta")
 
-[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo" unique_id=366647685]
+[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa" unique_id=1921304403]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="FranjaColor" type="ColorRect" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox" unique_id=280624187]
-custom_minimum_size = Vector2(0, 8)
+[node name="FranjaCyan" type="ColorRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox" unique_id=1921304404]
+custom_minimum_size = Vector2(0, 6)
 layout_mode = 2
-color = Color(0.92, 0.24, 0.24, 1)
+color = Color(0, 0.898, 1, 1)
 
-[node name="Margin" type="MarginContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox" unique_id=18905200]
+[node name="Margin" type="MarginContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox" unique_id=1921304405]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
 
-[node name="Cuerpo" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin" unique_id=982560512]
+[node name="Contenido" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin" unique_id=1921304406]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
-[node name="Header" type="HBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=1402616817]
+[node name="LblTituloMinimapa" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido" unique_id=1921304407]
 layout_mode = 2
-
-[node name="LblNombre" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/Header" unique_id=875199022]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-text = "Coche Rojo"
+theme_override_colors/font_color = Color(0, 0.898, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "PISTA CONFIRMADA"
 horizontal_alignment = 1
 
-[node name="VistaPrevia" type="PanelContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=91319128]
-custom_minimum_size = Vector2(0, 84)
-layout_mode = 2
-
-[node name="Centro" type="CenterContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/VistaPrevia" unique_id=684338583]
-layout_mode = 2
-
-[node name="SpriteCoche" type="TextureRect" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/VistaPrevia/Centro" unique_id=743945616]
-texture_filter = 1
-custom_minimum_size = Vector2(112, 64)
-layout_mode = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HSeparator1" type="HSeparator" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=1152789266]
-layout_mode = 2
-
-[node name="Atributos" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=1128259519]
+[node name="MarcoMinimapa" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido" unique_id=1921304408]
+custom_minimum_size = Vector2(220, 140)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 10
+theme_override_styles/panel = SubResource("StyleBoxFlat_preview")
 
-[node name="HSeparator2" type="HSeparator" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=169110970]
-layout_mode = 2
-
-[node name="SeccionIA" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=93195531]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="LblIA" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=1324788435]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
-theme_override_font_sizes/font_size = 12
-text = "NIVEL DE INTELIGENCIA (IA)"
-
-[node name="OptNivelIA" type="OptionButton" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=1212177813]
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-
-[node name="LblDescIA" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=210897340]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.76, 0.84, 1)
-theme_override_font_sizes/font_size = 12
-text = "Descripción del nivel de IA."
-autowrap_mode = 2
-
-[node name="TarjetaAzul" type="PanelContainer" parent="Layout/Contenido/VBox/Tarjetas" unique_id=6270905]
+[node name="LienzoMinimapa" type="Control" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido/MarcoMinimapa" unique_id=1921304409]
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul" unique_id=1818115870]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="FranjaColor" type="ColorRect" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox" unique_id=1807475089]
-custom_minimum_size = Vector2(0, 8)
-layout_mode = 2
-color = Color(0.24, 0.55, 0.96, 1)
-
-[node name="Margin" type="MarginContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox" unique_id=507036180]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
-
-[node name="Cuerpo" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin" unique_id=804916476]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Header" type="HBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=1455444019]
-layout_mode = 2
-
-[node name="LblNombre" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/Header" unique_id=506263393]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-text = "Coche Azul"
+[node name="LblMinimapaVacio" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido/MarcoMinimapa/LienzoMinimapa" unique_id=1921304410]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.65, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 13
+text = "Sin pista confirmada.
+Vuelve al editor para dibujar un circuito."
 horizontal_alignment = 1
-
-[node name="VistaPrevia" type="PanelContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=1707932862]
-custom_minimum_size = Vector2(0, 84)
-layout_mode = 2
-
-[node name="Centro" type="CenterContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/VistaPrevia" unique_id=1281014885]
-layout_mode = 2
-
-[node name="SpriteCoche" type="TextureRect" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/VistaPrevia/Centro" unique_id=692942748]
-texture_filter = 1
-custom_minimum_size = Vector2(112, 64)
-layout_mode = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HSeparator1" type="HSeparator" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=993704450]
-layout_mode = 2
-
-[node name="Atributos" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=653994184]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 10
-
-[node name="HSeparator2" type="HSeparator" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=783580349]
-layout_mode = 2
-
-[node name="SeccionIA" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=2078007921]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="LblIA" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=696332116]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
-theme_override_font_sizes/font_size = 12
-text = "NIVEL DE INTELIGENCIA (IA)"
-
-[node name="OptNivelIA" type="OptionButton" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=1095702988]
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-
-[node name="LblDescIA" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=630706093]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.76, 0.84, 1)
-theme_override_font_sizes/font_size = 12
-text = "Descripción del nivel de IA."
+vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="TarjetaVerde" type="PanelContainer" parent="Layout/Contenido/VBox/Tarjetas" unique_id=261984545]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde" unique_id=954735182]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="FranjaColor" type="ColorRect" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox" unique_id=967437557]
-custom_minimum_size = Vector2(0, 8)
-layout_mode = 2
-color = Color(0.22, 0.82, 0.42, 1)
-
-[node name="Margin" type="MarginContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox" unique_id=1119292725]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
-
-[node name="Cuerpo" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin" unique_id=1786126773]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Header" type="HBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=1938362658]
+[node name="HSeparator" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido" unique_id=1921304411]
 layout_mode = 2
 
-[node name="LblNombre" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/Header" unique_id=2030130608]
+[node name="LblStatsPista" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido" unique_id=1921304412]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-text = "Coche Verde"
-horizontal_alignment = 1
-
-[node name="VistaPrevia" type="PanelContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=831342470]
-custom_minimum_size = Vector2(0, 84)
-layout_mode = 2
-
-[node name="Centro" type="CenterContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/VistaPrevia" unique_id=660779759]
-layout_mode = 2
-
-[node name="SpriteCoche" type="TextureRect" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/VistaPrevia/Centro" unique_id=454424125]
-texture_filter = 1
-custom_minimum_size = Vector2(112, 64)
-layout_mode = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HSeparator1" type="HSeparator" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=1218354483]
-layout_mode = 2
-
-[node name="Atributos" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=388014789]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 10
-
-[node name="HSeparator2" type="HSeparator" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=161290161]
-layout_mode = 2
-
-[node name="SeccionIA" type="VBoxContainer" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=1223538692]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="LblIA" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=403867125]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
-theme_override_font_sizes/font_size = 12
-text = "NIVEL DE INTELIGENCIA (IA)"
-
-[node name="OptNivelIA" type="OptionButton" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=305965445]
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-
-[node name="LblDescIA" type="Label" parent="Layout/Contenido/VBox/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=812135310]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.76, 0.84, 1)
-theme_override_font_sizes/font_size = 12
-text = "Descripción del nivel de IA."
+theme_override_colors/font_color = Color(0.8, 0.86, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "Celdas de asfalto: 0
+Checkpoints: 0
+Meta: No definida"
 autowrap_mode = 2
 
-[node name="LblAviso" type="Label" parent="Layout/Contenido/VBox" unique_id=244199506]
+[node name="LblAviso" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/PanelMinimapa/VBox/Margin/Contenido" unique_id=244199506]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.45, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 2
+
+[node name="Tarjetas" type="HBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal" unique_id=1376224782]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.72
+theme_override_constants/separation = 12
+
+[node name="TarjetaRojo" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas" unique_id=2011305340]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_tarjeta")
+
+[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo" unique_id=366647685]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="FranjaColor" type="ColorRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox" unique_id=280624187]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+color = Color(0.92, 0.24, 0.24, 1)
+
+[node name="Margin" type="MarginContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox" unique_id=18905200]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="Cuerpo" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin" unique_id=982560512]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=1402616817]
+layout_mode = 2
+
+[node name="LblNombre" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/Header" unique_id=875199022]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Coche Rojo"
 horizontal_alignment = 1
+
+[node name="VistaPrevia" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=91319128]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_preview")
+
+[node name="Centro" type="CenterContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/VistaPrevia" unique_id=684338583]
+layout_mode = 2
+
+[node name="SpriteCoche" type="TextureRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/VistaPrevia/Centro" unique_id=743945616]
+texture_filter = 1
+custom_minimum_size = Vector2(96, 54)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HSeparator1" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=1152789266]
+layout_mode = 2
+
+[node name="Atributos" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=1128259519]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="HSeparator2" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=169110970]
+layout_mode = 2
+
+[node name="SeccionIA" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo" unique_id=93195531]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=1324788435]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
+theme_override_font_sizes/font_size = 13
+text = "NIVEL DE INTELIGENCIA (IA)"
+
+[node name="OptNivelIA" type="OptionButton" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=1212177813]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_opt_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_opt_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_opt_hover")
+clip_text = true
+fit_to_longest_item = false
+
+[node name="LblEstadoIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=1921304421]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "Entrenamiento pendiente"
+clip_text = true
+
+[node name="LblDescIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaRojo/VBox/Margin/Cuerpo/SeccionIA" unique_id=210897340]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.76, 0.84, 1)
+theme_override_font_sizes/font_size = 13
+text = "Descripción del nivel de IA."
+autowrap_mode = 2
+
+[node name="TarjetaAzul" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas" unique_id=6270905]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_tarjeta")
+
+[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul" unique_id=1818115870]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="FranjaColor" type="ColorRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox" unique_id=1807475089]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+color = Color(0.24, 0.55, 0.96, 1)
+
+[node name="Margin" type="MarginContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox" unique_id=507036180]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="Cuerpo" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin" unique_id=804916476]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=1455444019]
+layout_mode = 2
+
+[node name="LblNombre" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/Header" unique_id=506263393]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Coche Azul"
+horizontal_alignment = 1
+
+[node name="VistaPrevia" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=1707932862]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_preview")
+
+[node name="Centro" type="CenterContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/VistaPrevia" unique_id=1281014885]
+layout_mode = 2
+
+[node name="SpriteCoche" type="TextureRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/VistaPrevia/Centro" unique_id=692942748]
+texture_filter = 1
+custom_minimum_size = Vector2(96, 54)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HSeparator1" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=993704450]
+layout_mode = 2
+
+[node name="Atributos" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=653994184]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="HSeparator2" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=783580349]
+layout_mode = 2
+
+[node name="SeccionIA" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo" unique_id=2078007921]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=696332116]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
+theme_override_font_sizes/font_size = 13
+text = "NIVEL DE INTELIGENCIA (IA)"
+
+[node name="OptNivelIA" type="OptionButton" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=1095702988]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_opt_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_opt_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_opt_hover")
+clip_text = true
+fit_to_longest_item = false
+
+[node name="LblEstadoIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=1921304422]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "Entrenamiento pendiente"
+clip_text = true
+
+[node name="LblDescIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaAzul/VBox/Margin/Cuerpo/SeccionIA" unique_id=630706093]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.76, 0.84, 1)
+theme_override_font_sizes/font_size = 13
+text = "Descripción del nivel de IA."
+autowrap_mode = 2
+
+[node name="TarjetaVerde" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas" unique_id=261984545]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_tarjeta")
+
+[node name="VBox" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde" unique_id=954735182]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="FranjaColor" type="ColorRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox" unique_id=967437557]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+color = Color(0.22, 0.82, 0.42, 1)
+
+[node name="Margin" type="MarginContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox" unique_id=1119292725]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="Cuerpo" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin" unique_id=1786126773]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=1938362658]
+layout_mode = 2
+
+[node name="LblNombre" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/Header" unique_id=2030130608]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Coche Verde"
+horizontal_alignment = 1
+
+[node name="VistaPrevia" type="PanelContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=831342470]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_preview")
+
+[node name="Centro" type="CenterContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/VistaPrevia" unique_id=660779759]
+layout_mode = 2
+
+[node name="SpriteCoche" type="TextureRect" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/VistaPrevia/Centro" unique_id=454424125]
+texture_filter = 1
+custom_minimum_size = Vector2(96, 54)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HSeparator1" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=1218354483]
+layout_mode = 2
+
+[node name="Atributos" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=388014789]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="HSeparator2" type="HSeparator" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=161290161]
+layout_mode = 2
+
+[node name="SeccionIA" type="VBoxContainer" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo" unique_id=1223538692]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=403867125]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
+theme_override_font_sizes/font_size = 13
+text = "NIVEL DE INTELIGENCIA (IA)"
+
+[node name="OptNivelIA" type="OptionButton" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=305965445]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_opt_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_opt_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_opt_hover")
+clip_text = true
+fit_to_longest_item = false
+
+[node name="LblEstadoIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=1921304423]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "Entrenamiento pendiente"
+clip_text = true
+
+[node name="LblDescIA" type="Label" parent="Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas/TarjetaVerde/VBox/Margin/Cuerpo/SeccionIA" unique_id=812135310]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.76, 0.84, 1)
+theme_override_font_sizes/font_size = 13
+text = "Descripción del nivel de IA."
+autowrap_mode = 2

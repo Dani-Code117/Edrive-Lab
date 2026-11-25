@@ -30,7 +30,7 @@ static func validar_y_generar(
 	celdas_asfalto: Dictionary,
 	celda_meta: Vector2i,
 	tiene_meta: bool,
-	tamanio_celda: int = 32
+	tamanio_celda: int = 16
 ) -> Dictionary:
 	if celdas_asfalto.size() < 9:
 		return _error("Dibuja un circuito cerrado con la brocha 3x3.")

@@ -63,7 +63,7 @@ static func construir_pista_suave(
 		linea_ext.name = "BordeExterior_%d" % i
 		linea_ext.points = suave_ext
 		linea_ext.closed = true
-		linea_ext.width = 4.0
+		linea_ext.width = 2.0
 		linea_ext.default_color = Color(0.95, 0.84, 0.22, 1.0)
 		linea_ext.joint_mode = Line2D.LINE_JOINT_ROUND
 		linea_ext.antialiased = true
@@ -92,7 +92,7 @@ static func construir_pista_suave(
 			linea_int.name = "BordeInterior_%d_%d" % [h_idx, j]
 			linea_int.points = suave_int
 			linea_int.closed = true
-			linea_int.width = 4.0
+			linea_int.width = 2.0
 			linea_int.default_color = Color(0.95, 0.84, 0.22, 1.0)
 			linea_int.joint_mode = Line2D.LINE_JOINT_ROUND
 			linea_int.antialiased = true

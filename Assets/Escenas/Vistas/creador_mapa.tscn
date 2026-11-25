@@ -99,7 +99,7 @@ grow_vertical = 2
 theme_override_constants/separation = 0
 
 [node name="BarraSuperior" type="PanelContainer" parent="Layout" unique_id=2147341687]
-custom_minimum_size = Vector2(0, 52)
+custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Layout/BarraSuperior" unique_id=145156377]
@@ -120,7 +120,7 @@ text = "Dibuja un circuito cerrado."
 clip_text = true
 
 [node name="BtnVolver" type="Button" parent="Layout/BarraSuperior/Margin/HBox" unique_id=1040743974]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "Menú"
@@ -128,14 +128,14 @@ script = ExtResource("3_7ex6l")
 
 [node name="BtnEditar" type="Button" parent="Layout/BarraSuperior/Margin/HBox" unique_id=2035188077]
 visible = false
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "Editar Pista"
 script = ExtResource("3_7ex6l")
 
 [node name="BtnConfirmar" type="Button" parent="Layout/BarraSuperior/Margin/HBox" unique_id=769022879]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_verde_normal")
@@ -150,7 +150,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 0
 
 [node name="PanelLateral" type="PanelContainer" parent="Layout/Cuerpo" unique_id=1564399222]
-custom_minimum_size = Vector2(180, 0)
+custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Layout/Cuerpo/PanelLateral" unique_id=701335577]
@@ -167,12 +167,12 @@ theme_override_constants/separation = 10
 [node name="LblHerramientas" type="Label" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=1861739246]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 15
 text = "HERRAMIENTAS"
 horizontal_alignment = 1
 
 [node name="BtnPincel" type="Button" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=217730876]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 toggle_mode = true
@@ -181,7 +181,7 @@ text = "Pincel Pista"
 script = ExtResource("3_7ex6l")
 
 [node name="BtnBorrador" type="Button" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=1532602803]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 toggle_mode = true
@@ -189,7 +189,7 @@ text = "Borrador"
 script = ExtResource("3_7ex6l")
 
 [node name="BtnMeta" type="Button" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=358745096]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 toggle_mode = true
@@ -202,12 +202,12 @@ layout_mode = 2
 [node name="LblGrosor" type="Label" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=322165176]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.65, 0.76, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 15
 text = "GROSOR DE PINCEL"
 horizontal_alignment = 1
 
 [node name="OptGrosor" type="OptionButton" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=302741006]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 
@@ -215,7 +215,7 @@ mouse_default_cursor_shape = 2
 layout_mode = 2
 
 [node name="BtnLimpiar" type="Button" parent="Layout/Cuerpo/PanelLateral/Margin/VBox" unique_id=1672587223]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_rojo_normal")

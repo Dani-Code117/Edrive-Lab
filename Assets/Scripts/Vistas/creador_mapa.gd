@@ -100,7 +100,7 @@ func _on_confirmar_pressed() -> void:
 	if not _en_vista_previa:
 		var eje: Array[Vector2i] = validacion.get("eje_central", [] as Array[Vector2i])
 		var radios: Array[float] = validacion.get("radios_eje", [] as Array[float])
-		var ancho := maxf(float(editor_pista.grosor_pincel * DatosSimulacion.TAMANIO_CELDA), 64.0)
+		var ancho := maxf(float(editor_pista.grosor_pincel * DatosSimulacion.TAMANIO_CELDA), 32.0)
 		DatosSimulacion.guardar_pista(
 			editor_pista.celdas_asfalto,
 			editor_pista.celda_meta,
