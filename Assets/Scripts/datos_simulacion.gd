@@ -3,9 +3,9 @@ extends Node
 ## Autoload global que transporta el circuito validado, los checkpoints horarios
 ## y la configuración de los 3 vehículos entre las vistas de EDrive Lab.
 
-const TAMANIO_CELDA: int = 32
-const ANCHO_GRID: int = 30
-const ALTO_GRID: int = 18
+const TAMANIO_CELDA: int = 16
+const ANCHO_GRID: int = 45
+const ALTO_GRID: int = 27
 
 ## Diccionario { Vector2i: true } con todas las celdas de asfalto de la pista.
 var celdas_asfalto: Dictionary = {}
@@ -18,7 +18,7 @@ var tiene_meta: bool = false
 var ruta_checkpoints: Array[Vector2i] = []
 var eje_central: Array[Vector2i] = []
 var radios_eje: Array[float] = []
-var ancho_pista: float = 96.0
+var ancho_pista: float = 48.0
 var posicion_salida: Vector2 = Vector2.ZERO
 var rotacion_salida: float = 0.0
 
@@ -78,7 +78,7 @@ func limpiar_pista() -> void:
 	ruta_checkpoints.clear()
 	eje_central.clear()
 	radios_eje.clear()
-	ancho_pista = 96.0
+	ancho_pista = 48.0
 	posicion_salida = Vector2.ZERO
 	rotacion_salida = 0.0
 
@@ -90,7 +90,7 @@ func guardar_pista(
 	rot_salida: float,
 	nuevo_eje: Array[Vector2i] = [],
 	nuevos_radios: Array[float] = [],
-	nuevo_ancho: float = 96.0
+	nuevo_ancho: float = 48.0
 ) -> void:
 	celdas_asfalto = nuevas_celdas.duplicate()
 	celda_meta = meta

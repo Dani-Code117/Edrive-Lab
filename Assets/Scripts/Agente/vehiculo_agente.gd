@@ -8,12 +8,12 @@ signal chocado(vehiculo: VehiculoAgente, motivo: String)
 signal checkpoint_alcanzado(vehiculo: VehiculoAgente, id_checkpoint: int, vuelta: int)
 
 const ANGULOS_SENSORES: Array[float] = [-90.0, -45.0, -15.0, 0.0, 15.0, 45.0, 90.0]
-const LONGITUD_RAYO: float = 150.0
+const LONGITUD_RAYO: float = 80.0
 const RUTA_SPRITE_COCHE := "res://Assets/Sprites/coche_base.png"
 
 @export var control_manual: bool = false
 @export var mostrar_sensores: bool = true
-@export var tiempo_max_sin_checkpoint: float = 5.0
+@export var tiempo_max_sin_checkpoint: float = 4.0
 
 var nombre_vehiculo: String = "Vehículo"
 var color_vehiculo: Color = Color.WHITE
@@ -65,14 +65,15 @@ func _ready() -> void:
 
 func configurar(cfg: Dictionary) -> void:
 	nombre_vehiculo = str(cfg.get("nombre", "Vehículo"))
-	color_vehiculo = cfg.get("color", Color.WHITE)
-	nivel_ia = int(cfg.get("nivel_ia", 1))
+	var raw_color: Variant = cfg.get("color", Color.WHITE)
+	color_vehiculo = raw_color if raw_color is Color else Color.WHITE
+	nivel_ia = int(roundf(_sanitizar_float(cfg.get("nivel_ia", 1), 1.0, 10.0, 1.0)))
 
-	attr_velocidad_maxima = clampf(float(cfg.get("velocidad_maxima", 0.7)), 0.0, 1.0)
-	attr_aceleracion = clampf(float(cfg.get("aceleracion", 0.7)), 0.0, 1.0)
-	attr_frenado = clampf(float(cfg.get("frenado", 0.7)), 0.0, 1.0)
-	attr_control = clampf(float(cfg.get("control", 0.7)), 0.0, 1.0)
-	attr_agarre = clampf(float(cfg.get("agarre", 0.7)), 0.0, 1.0)
+	attr_velocidad_maxima = _sanitizar_float(cfg.get("velocidad_maxima", 0.7), 0.0, 1.0, 0.7)
+	attr_aceleracion = _sanitizar_float(cfg.get("aceleracion", 0.7), 0.0, 1.0, 0.7)
+	attr_frenado = _sanitizar_float(cfg.get("frenado", 0.7), 0.0, 1.0, 0.7)
+	attr_control = _sanitizar_float(cfg.get("control", 0.7), 0.0, 1.0, 0.7)
+	attr_agarre = _sanitizar_float(cfg.get("agarre", 0.7), 0.0, 1.0, 0.7)
 
 	_recalcular_fisicas()
 	if is_node_ready() and sprite != null:
@@ -80,8 +81,8 @@ func configurar(cfg: Dictionary) -> void:
 
 
 func reiniciar_estado(pos: Vector2, rot: float, cant_checkpoints: int = 0) -> void:
-	global_position = pos
-	rotation = rot
+	global_position = pos if pos.is_finite() else Vector2.ZERO
+	rotation = rot if is_finite(rot) else 0.0
 	velocity = Vector2.ZERO
 	velocidad_actual = 0.0
 	esta_chocado = false
@@ -110,9 +111,9 @@ func registrar_checkpoint(id_cp: int) -> void:
 
 
 func _recalcular_fisicas() -> void:
-	vel_max = lerpf(130.0, 360.0, attr_velocidad_maxima)
-	tasa_aceleracion = lerpf(120.0, 480.0, attr_aceleracion)
-	tasa_frenado = lerpf(150.0, 620.0, attr_frenado)
+	vel_max = lerpf(65.0, 180.0, attr_velocidad_maxima)
+	tasa_aceleracion = lerpf(60.0, 240.0, attr_aceleracion)
+	tasa_frenado = lerpf(75.0, 310.0, attr_frenado)
 	vel_rotacion = lerpf(2.0, 5.2, attr_control)
 	factor_agarre = lerpf(2.0, 12.0, attr_agarre)
 
@@ -122,6 +123,7 @@ func _configurar_sprite() -> void:
 		sprite.texture = load(RUTA_SPRITE_COCHE)
 	elif sprite.texture == null:
 		sprite.texture = _generar_textura_coche()
+	sprite.scale = Vector2(8.0 / 24.0, 8.0 / 24.0)
 	sprite.modulate = color_vehiculo
 
 
@@ -135,16 +137,30 @@ func _configurar_rayos() -> void:
 		for i in range(ANGULOS_SENSORES.size()):
 			var rayo := RayCast2D.new()
 			rayo.name = "Ray%d" % i
-			rayo.enabled = true
-			rayo.collision_mask = 1 # Layer 1: Muros_Pasto
-			rayo.collide_with_areas = false
-			rayo.collide_with_bodies = true
 			rayo.target_position = Vector2.RIGHT.rotated(deg_to_rad(ANGULOS_SENSORES[i])) * LONGITUD_RAYO
 			nodo_sensores.add_child(rayo)
 			_rayos.append(rayo)
 
+	for rayo in _rayos:
+		rayo.enabled = true
+		rayo.collision_mask = 1 # Layer 1: Muros_Pasto
+		rayo.collide_with_areas = false
+		rayo.collide_with_bodies = true
+
 
 func _physics_process(delta: float) -> void:
+	if not is_finite(delta) or delta < 0.0:
+		return
+
+	if not global_position.is_finite():
+		global_position = Vector2.ZERO
+	if not is_finite(rotation):
+		rotation = 0.0
+	if not is_finite(velocidad_actual):
+		velocidad_actual = 0.0
+	if not velocity.is_finite():
+		velocity = Vector2.ZERO
+
 	_actualizar_sensores()
 
 	if mostrar_sensores:
@@ -157,6 +173,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if total_checkpoints > 0:
+		if not is_finite(tiempo_sin_checkpoint) or tiempo_sin_checkpoint < 0.0:
+			tiempo_sin_checkpoint = 0.0
 		tiempo_sin_checkpoint += delta
 		if tiempo_sin_checkpoint >= tiempo_max_sin_checkpoint:
 			_marcar_chocado("Atascado")
@@ -192,7 +210,7 @@ func _actualizar_sensores() -> void:
 		rayo.force_raycast_update()
 		if rayo.is_colliding():
 			var dist := global_position.distance_to(rayo.get_collision_point())
-			lecturas_sensores[i] = clampf(dist / LONGITUD_RAYO, 0.0, 1.0)
+			lecturas_sensores[i] = _sanitizar_float(dist / LONGITUD_RAYO, 0.0, 1.0, 1.0)
 		else:
 			lecturas_sensores[i] = 1.0
 
@@ -210,14 +228,31 @@ func _obtener_comandos() -> Vector2:
 			giro = 1.0
 		elif Input.is_key_pressed(KEY_A):
 			giro = -1.0
-		return Vector2(clampf(acel, -1.0, 1.0), clampf(giro, -1.0, 1.0))
+		return Vector2(_sanitizar_float(acel, -1.0, 1.0, 0.0), _sanitizar_float(giro, -1.0, 1.0, 0.0))
 
 	if cerebro != null and cerebro.has_method("evaluar"):
-		var salida: PackedFloat64Array = cerebro.evaluar(lecturas_sensores)
-		if salida.size() >= 2:
-			return Vector2(clampf(salida[0], 0.0, 1.0), clampf(salida[1], -1.0, 1.0))
+		var salida: Variant = cerebro.evaluar(lecturas_sensores)
+		if (salida is PackedFloat64Array or salida is PackedFloat32Array or salida is Array) and salida.size() >= 2:
+			return Vector2(
+				_sanitizar_float(salida[0], 0.0, 1.0, 0.0),
+				_sanitizar_float(salida[1], -1.0, 1.0, 0.0)
+			)
 
 	return Vector2.ZERO
+
+
+func _sanitizar_float(valor: Variant, min_val: float, max_val: float, defecto: float) -> float:
+	var num := defecto
+	if valor is float or valor is int:
+		num = float(valor)
+	elif valor is String and valor.is_valid_float():
+		num = float(valor)
+	else:
+		return clampf(defecto, min_val, max_val)
+
+	if not is_finite(num):
+		return clampf(defecto, min_val, max_val)
+	return clampf(num, min_val, max_val)
 
 
 func _marcar_chocado(motivo: String) -> void:
@@ -236,7 +271,7 @@ func _on_dibujo_sensores_draw() -> void:
 	if not mostrar_sensores or esta_chocado:
 		return
 	for i in range(mini(_rayos.size(), 7)):
-		var norm := lecturas_sensores[i]
+		var norm := _sanitizar_float(lecturas_sensores[i], 0.0, 1.0, 1.0)
 		var dir := Vector2.RIGHT.rotated(deg_to_rad(ANGULOS_SENSORES[i]))
 		var fin := dir * (norm * LONGITUD_RAYO)
 		var col := Color(1.0 - norm, norm, 0.2, 0.75)
