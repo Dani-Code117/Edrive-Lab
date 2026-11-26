@@ -6,6 +6,7 @@
 collision_layer = 2
 motion_mode = 1
 script = ExtResource("1_agente")
+longitud_rayo = 200.0
 tiempo_max_sin_checkpoint = 8.0
 
 [node name="SpriteCoche" type="Sprite2D" parent="." unique_id=2033837391]
