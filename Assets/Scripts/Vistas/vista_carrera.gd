@@ -274,6 +274,9 @@ func _instanciar_vehiculos() -> void:
 		return
 
 	var cant_cps := _checkpoints_activos.size()
+	var pos_cps := PackedVector2Array()
+	for cp_node in _checkpoints:
+		pos_cps.append(cp_node.global_position)
 	var pos_global := escenario.to_global(_pos_salida_activa)
 	for i in range(mini(3, DatosSimulacion.config_vehiculos.size())):
 		var cfg: Dictionary = DatosSimulacion.config_vehiculos[i]
@@ -283,6 +286,7 @@ func _instanciar_vehiculos() -> void:
 		coche.name = "Vehiculo_%d" % i
 		nodo_vehiculos.add_child(coche)
 		coche.configurar(cfg)
+		coche.posiciones_checkpoints = pos_cps
 		coche.cerebro = RedNeuronal.cargar_nivel_o_fallback(coche.nivel_ia)
 		coche.mostrar_sensores = _mostrar_sensores_activo
 		coche.reiniciar_estado(pos_global, _rot_salida_activa, cant_cps)

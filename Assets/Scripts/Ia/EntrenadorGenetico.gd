@@ -11,7 +11,7 @@ extends SceneTree
 const RUTA_PRESETS := "res://Assets/Presets_ia"
 const RUTA_VEHICULO := "res://Assets/Escenas/Componentes/vehiculo_agente.tscn"
 const RUTA_CHECKPOINT := "res://Assets/Escenas/Componentes/checkpoint.tscn"
-const NUM_GENES: int = 62 # 42 + 6 + 12 + 2
+const NUM_GENES: int = 170 # 144 + 8 + 16 + 2
 
 const NIVELES_DEFECTO: Array[Dictionary] = [
 	{"nivel": 1, "titulo": "Novato Caótico", "desc": "Pesos sin refinar; acelera sin frenar y gira erráticamente."},
@@ -285,11 +285,13 @@ static func _evaluar_poblacion_en_pista(
 		"nivel_ia": 1,
 	}
 
+	var cps_packed := PackedVector2Array(posiciones_cp)
 	for i in range(poblacion.size()):
 		var car := escena_car.instantiate() as VehiculoAgente
 		car.mostrar_sensores = false
 		mundo.add_child(car)
 		car.configurar(cfg)
+		car.posiciones_checkpoints = cps_packed
 		car.cerebro = poblacion[i]
 		car.reiniciar_estado(pos_salida, rot_salida, cps.size())
 		coches.append(car)

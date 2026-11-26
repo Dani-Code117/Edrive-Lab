@@ -43,14 +43,14 @@ func _run_all() -> void:
 
 
 func _test_a_cerebro_entrenado_esquema_y_roundtrip_temp() -> void:
-	print("--- Test (a): CerebroEntrenado esquema 7->6->2 y round-trip en temp dir ---")
+	print("--- Test (a): CerebroEntrenado esquema 18->8->2 y round-trip en temp dir ---")
 	var c := CerebroEntrenado.new()
 	_assert_true(c.nivel == 1, "CerebroEntrenado.nivel por defecto == 1")
-	_assert_true(c.num_entradas == 7 and c.num_oculta == 6 and c.num_salida == 2, "Topologia por defecto 7->6->2")
+	_assert_true(c.num_entradas == 18 and c.num_oculta == 8 and c.num_salida == 2, "Topologia por defecto 18->8->2")
 	_assert_true(
-		c.pesos_oculta.size() == 42 and c.sesgos_oculta.size() == 6
-		and c.pesos_salida.size() == 12 and c.sesgos_salida.size() == 2,
-		"Tamanos por defecto 42/6/12/2 inicializados"
+		c.pesos_oculta.size() == 144 and c.sesgos_oculta.size() == 8
+		and c.pesos_salida.size() == 16 and c.sesgos_salida.size() == 2,
+		"Tamanos por defecto 144/8/16/2 inicializados"
 	)
 	_assert_true(c.es_valido(), "CerebroEntrenado recien creado es valido")
 
@@ -83,7 +83,7 @@ func _test_a_cerebro_entrenado_esquema_y_roundtrip_temp() -> void:
 	var c_bad_topo := CerebroEntrenado.new()
 	c_bad_topo.num_entradas = 5
 	var c_bad_size := CerebroEntrenado.new()
-	c_bad_size.pesos_oculta.resize(41)
+	c_bad_size.pesos_oculta.resize(143)
 	var c_bad_nan := CerebroEntrenado.new()
 	c_bad_nan.pesos_oculta[10] = NAN
 	var c_bad_inf := CerebroEntrenado.new()
@@ -107,11 +107,11 @@ func _test_a_cerebro_entrenado_esquema_y_roundtrip_temp() -> void:
 	orig.titulo = "Nivel 7 — Control de Frenada"
 	orig.descripcion_educativa = "Prueba temporal de serialización"
 	orig.fitness_alcanzado = 1234.5
-	for i in range(42):
+	for i in range(144):
 		orig.pesos_oculta[i] = float(i - 20) * 0.05
-	for j in range(6):
+	for j in range(8):
 		orig.sesgos_oculta[j] = float(j) * 0.1 - 0.25
-	for k in range(12):
+	for k in range(16):
 		orig.pesos_salida[k] = float(k - 5) * 0.08
 	orig.sesgos_salida[0] = 0.3
 	orig.sesgos_salida[1] = -0.4
@@ -128,7 +128,7 @@ func _test_a_cerebro_entrenado_esquema_y_roundtrip_temp() -> void:
 		and recargado.titulo == orig.titulo
 		and recargado.descripcion_educativa == orig.descripcion_educativa
 		and is_equal_approx(recargado.fitness_alcanzado, 1234.5)
-		and recargado.pesos_oculta.size() == 42
+		and recargado.pesos_oculta.size() == 144
 		and is_equal_approx(recargado.pesos_oculta[17], orig.pesos_oculta[17])
 		and is_equal_approx(recargado.sesgos_salida[1], -0.4)
 	)
@@ -148,45 +148,45 @@ func _test_a_cerebro_entrenado_esquema_y_roundtrip_temp() -> void:
 func _test_b_red_neuronal_matematica_tanh_y_limites() -> void:
 	print("--- Test (b): RedNeuronal matematica tanh() exacta, snapshots y limites ---")
 	var red_cero := RedNeuronal.new()
-	var sal_cero := red_cero.evaluar(PackedFloat64Array([0.5, 0.2, 0.8, 1.0, 0.0, 0.3, 0.7]))
+	var sal_cero := red_cero.evaluar(PackedFloat64Array([0.5, 0.2, 0.8, 1.0, 0.0, 0.3, 0.7, 0.4, 0.6, 0.1, 0.9, 0.2, 0.5, 0.8, 1.0, 0.5, 0.5, 0.5]))
 	_assert_true(
 		sal_cero.size() == 2
-		and is_equal_approx(sal_cero[0], 0.5)
+		and is_equal_approx(sal_cero[0], 0.0)
 		and is_equal_approx(sal_cero[1], 0.0),
-		"Red con pesos 0 retorna [0.5, 0.0] exacto con tanh()"
+		"Red con pesos 0 retorna [0.0, 0.0] exacto con tanh()"
 	)
 
 	# Verificación matemática exacta contra cálculo manual independiente
 	var red := RedNeuronal.new()
-	var entradas := PackedFloat64Array([0.2, 0.4, 0.6, 0.8, 0.1, 0.9, 0.3])
-	for j in range(6):
+	var entradas := PackedFloat64Array([0.2, 0.4, 0.6, 0.8, 0.1, 0.9, 0.3, 0.5, 0.7, 0.25, 0.85, 0.15, 0.65, 0.35, 0.9, 0.5, 0.5, 0.5])
+	for j in range(8):
 		red.sesgos_oculta[j] = 0.1 * float(j - 2)
-		for i in range(7):
-			red.pesos_oculta[j * 7 + i] = 0.05 * float((i + j) - 4)
+		for i in range(18):
+			red.pesos_oculta[j * 18 + i] = 0.05 * float((i + j) - 4)
 	for k in range(2):
 		red.sesgos_salida[k] = 0.2 if k == 0 else -0.15
-		for j in range(6):
-			red.pesos_salida[k * 6 + j] = (0.3 if k == 0 else -0.25) * float(j - 2)
+		for j in range(8):
+			red.pesos_salida[k * 8 + j] = (0.3 if k == 0 else -0.25) * float(j - 2)
 
 	var h_esperada: Array[float] = []
-	for j in range(6):
+	for j in range(8):
 		var s := red.sesgos_oculta[j]
-		for i in range(7):
-			s += entradas[i] * red.pesos_oculta[j * 7 + i]
+		for i in range(18):
+			s += entradas[i] * red.pesos_oculta[j * 18 + i]
 		h_esperada.append(tanh(s))
 
 	var z0 := red.sesgos_salida[0]
 	var z1 := red.sesgos_salida[1]
-	for j in range(6):
-		z0 += h_esperada[j] * red.pesos_salida[0 * 6 + j]
-		z1 += h_esperada[j] * red.pesos_salida[1 * 6 + j]
-	var acel_esperada := clampf((tanh(z0) + 1.0) * 0.5, 0.0, 1.0)
+	for j in range(8):
+		z0 += h_esperada[j] * red.pesos_salida[0 * 8 + j]
+		z1 += h_esperada[j] * red.pesos_salida[1 * 8 + j]
+	var acel_esperada := clampf(tanh(z0), -1.0, 1.0)
 	var giro_esperado := clampf(tanh(z1), -1.0, 1.0)
 
 	var salida := red.evaluar(entradas)
-	var ocultas_ok := red.ultimas_ocultas.size() == 6
+	var ocultas_ok := red.ultimas_ocultas.size() == 8
 	if ocultas_ok:
-		for j in range(6):
+		for j in range(8):
 			if absf(red.ultimas_ocultas[j] - h_esperada[j]) > 1e-6:
 				ocultas_ok = false
 				break
@@ -196,12 +196,12 @@ func _test_b_red_neuronal_matematica_tanh_y_limites() -> void:
 		"evaluar() coincide exactamente (<1e-6) con calculo manual tanh()"
 	)
 	_assert_true(
-		red.ultimas_entradas.size() == 7
+		red.ultimas_entradas.size() == 18
 		and ocultas_ok
 		and red.ultimas_salidas.size() == 2
 		and is_equal_approx(red.ultimas_salidas[0], salida[0])
 		and is_equal_approx(red.ultimas_salidas[1], salida[1]),
-		"Instantaneas ultimas_entradas(7), ultimas_ocultas(6) y ultimas_salidas(2) sincronizadas"
+		"Instantaneas ultimas_entradas(18), ultimas_ocultas(8) y ultimas_salidas(2) sincronizadas"
 	)
 
 	# Copia fresca retornada (mutar salida no corrompe ultimas_salidas)
@@ -219,8 +219,8 @@ func _test_b_red_neuronal_matematica_tanh_y_limites() -> void:
 		var r_test := RedNeuronal.new()
 		r_test.inicializar_aleatorio(idx + 1, 4.0)
 		var ent := PackedFloat64Array()
-		ent.resize(7)
-		for i in range(7):
+		ent.resize(18)
+		for i in range(18):
 			if idx % 10 == 0:
 				ent[i] = -1e6 if i % 2 == 0 else 1e6
 			elif idx % 10 == 1:
@@ -231,7 +231,7 @@ func _test_b_red_neuronal_matematica_tanh_y_limites() -> void:
 		if out.size() != 2 or not is_finite(out[0]) or not is_finite(out[1]):
 			todas_acotadas = false
 			break
-		if out[0] < 0.0 or out[0] > 1.0 or out[1] < -1.0 or out[1] > 1.0:
+		if out[0] < -1.0 or out[0] > 1.0 or out[1] < -1.0 or out[1] > 1.0:
 			todas_acotadas = false
 			break
 		for v in r_test.ultimas_ocultas:
@@ -251,7 +251,7 @@ func _test_c_casos_borde_nan_inf_tamanos_y_operadores() -> void:
 	_assert_true(
 		is_equal_approx(red.ultimas_entradas[0], -1e6)
 		and is_equal_approx(red.ultimas_entradas[1], 1e6)
-		and is_finite(out_ext[0]) and out_ext[0] >= 0.0 and out_ext[0] <= 1.0
+		and is_finite(out_ext[0]) and out_ext[0] >= -1.0 and out_ext[0] <= 1.0
 		and is_finite(out_ext[1]) and out_ext[1] >= -1.0 and out_ext[1] <= 1.0,
 		"Entradas finitas arbitrarias (-1e6, 1e6) pasan sin recorte a [0,1] y mantienen salidas acotadas"
 	)
@@ -260,14 +260,14 @@ func _test_c_casos_borde_nan_inf_tamanos_y_operadores() -> void:
 	var out_vacio := red.evaluar(PackedFloat64Array())
 	var out_corto := red.evaluar(PackedFloat64Array([0.5, 0.8, 0.1]))
 	var ent_largo := PackedFloat64Array()
-	ent_largo.resize(15)
+	ent_largo.resize(25)
 	ent_largo.fill(0.4)
 	var out_largo := red.evaluar(ent_largo)
 	_assert_true(
 		out_vacio.size() == 2 and out_corto.size() == 2 and out_largo.size() == 2
-		and is_equal_approx(red.ultimas_entradas[6], 0.4)
-		and red.ultimas_entradas.size() == 7,
-		"Entradas vacias, cortas (<7) y largas (>7) se normalizan a 7 entradas de forma segura"
+		and is_equal_approx(red.ultimas_entradas[17], 0.4)
+		and red.ultimas_entradas.size() == 18,
+		"Entradas vacias, cortas (<18) y largas (>18) se normalizan a 18 entradas de forma segura"
 	)
 
 	# Entradas NaN, INF, -INF
@@ -276,7 +276,7 @@ func _test_c_casos_borde_nan_inf_tamanos_y_operadores() -> void:
 		is_equal_approx(red.ultimas_entradas[0], 0.0)
 		and is_equal_approx(red.ultimas_entradas[1], 0.0)
 		and is_equal_approx(red.ultimas_entradas[2], 0.0)
-		and is_finite(out_nan[0]) and out_nan[0] >= 0.0 and out_nan[0] <= 1.0
+		and is_finite(out_nan[0]) and out_nan[0] >= -1.0 and out_nan[0] <= 1.0
 		and is_finite(out_nan[1]) and out_nan[1] >= -1.0 and out_nan[1] <= 1.0,
 		"Entradas NaN/INF/-INF se sanean a 0.0 y producen salidas finitas acotadas"
 	)
@@ -289,7 +289,7 @@ func _test_c_casos_borde_nan_inf_tamanos_y_operadores() -> void:
 	red_corrupta.sesgos_salida[1] = NAN
 	var out_corrupta := red_corrupta.evaluar(PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 	_assert_true(
-		is_finite(out_corrupta[0]) and out_corrupta[0] >= 0.0 and out_corrupta[0] <= 1.0
+		is_finite(out_corrupta[0]) and out_corrupta[0] >= -1.0 and out_corrupta[0] <= 1.0
 		and is_finite(out_corrupta[1]) and out_corrupta[1] >= -1.0 and out_corrupta[1] <= 1.0,
 		"Pesos y sesgos corruptos (NaN/INF) en memoria no rompen evaluar()"
 	)
@@ -317,7 +317,7 @@ func _test_c_casos_borde_nan_inf_tamanos_y_operadores() -> void:
 	rng.seed = 777
 	clon.mutar(1.0, 0.5, rng)
 	var cambio := false
-	for i in range(42):
+	for i in range(144):
 		if not is_equal_approx(clon.pesos_oculta[i], red.pesos_oculta[i]):
 			cambio = true
 			break
@@ -365,9 +365,9 @@ func _test_d_integracion_vehiculo_agente() -> void:
 
 	await _esperar_fisicas(10)
 
-	var sensores_sincronizados := red.ultimas_entradas.size() == 7
+	var sensores_sincronizados := red.ultimas_entradas.size() == 18
 	if sensores_sincronizados:
-		for i in range(7):
+		for i in range(14):
 			if absf(red.ultimas_entradas[i] - car.lecturas_sensores[i]) > 1e-6:
 				sensores_sincronizados = false
 				break

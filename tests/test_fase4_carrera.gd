@@ -106,7 +106,7 @@ func _run_all() -> void:
 
 
 func _test_a_visor_red_neuronal() -> void:
-	print("--- Test (a): VisorRedNeuronal (null, pre-tick, NaN/INF, indexacion 7-6-2) ---")
+	print("--- Test (a): VisorRedNeuronal (null, pre-tick, NaN/INF, indexacion 18-8-2) ---")
 	var vp := SubViewport.new()
 	vp.size = Vector2i(360, 260)
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -125,8 +125,8 @@ func _test_a_visor_red_neuronal() -> void:
 
 	var snap_null: Dictionary = visor.call("obtener_instantanea_segura")
 	_assert_true(
-		snap_null["tiene_vehiculo"] == false and snap_null["entradas"].size() == 7
-		and snap_null["ocultas"].size() == 6 and snap_null["salidas"].size() == 2,
+		snap_null["tiene_vehiculo"] == false and snap_null["entradas"].size() == 18
+		and snap_null["ocultas"].size() == 8 and snap_null["salidas"].size() == 2,
 		"VisorRedNeuronal maneja vehiculo_objetivo == null sin errores"
 	)
 
@@ -143,14 +143,14 @@ func _test_a_visor_red_neuronal() -> void:
 	var snap_pre: Dictionary = visor.call("obtener_instantanea_segura")
 	_assert_true(
 		snap_pre["tiene_vehiculo"] and snap_pre["tiene_red"]
-		and snap_pre["pesos_oculta"].size() == 42 and snap_pre["pesos_salida"].size() == 12,
-		"VisorRedNeuronal enlaza vehiculo pre-tick con buffers 7-6-2 completos"
+		and snap_pre["pesos_oculta"].size() == 144 and snap_pre["pesos_salida"].size() == 16,
+		"VisorRedNeuronal enlaza vehiculo pre-tick con buffers 18-8-2 completos"
 	)
 
-	# Verificar indexacion exacta j*7+i y k*6+j + sanitizacion de NaN/INF
-	red.pesos_oculta[3 * 7 + 5] = 2.75
-	red.pesos_salida[1 * 6 + 4] = -1.85
-	red.evaluar(PackedFloat64Array([0.1, 0.2, 0.3, 0.8, 0.5, 0.6, 0.9]))
+	# Verificar indexacion exacta j*18+i y k*8+j + sanitizacion de NaN/INF
+	red.pesos_oculta[3 * 18 + 5] = 2.75
+	red.pesos_salida[1 * 8 + 4] = -1.85
+	red.evaluar(PackedFloat64Array([0.1, 0.2, 0.3, 0.8, 0.5, 0.6, 0.9, 0.4, 0.7, 0.2, 0.1, 0.5, 0.6, 0.7, 0.9, 0.5, 0.5, 0.5]))
 	red.ultimas_entradas[2] = NAN
 	red.ultimas_ocultas[1] = INF
 	red.ultimas_salidas[0] = -INF
@@ -171,10 +171,10 @@ func _test_a_visor_red_neuronal() -> void:
 
 	_assert_true(
 		todo_finito
-		and is_equal_approx(snap_nan["pesos_oculta"][3 * 7 + 5], 2.75)
-		and is_equal_approx(snap_nan["pesos_salida"][1 * 6 + 4], -1.85)
+		and is_equal_approx(snap_nan["pesos_oculta"][3 * 18 + 5], 2.75)
+		and is_equal_approx(snap_nan["pesos_salida"][1 * 8 + 4], -1.85)
 		and is_equal_approx(snap_nan["entradas"][3], 0.8),
-		"VisorRedNeuronal sanitiza NaN/INF y conserva indexacion exacta j*7+i y k*6+j"
+		"VisorRedNeuronal sanitiza NaN/INF y conserva indexacion exacta j*18+i y k*8+j"
 	)
 
 	vp.queue_free()
@@ -579,7 +579,7 @@ func _test_g_invarianza_colisiones_y_seguridad(ds: Node) -> void:
 	var sens_1080: PackedFloat64Array = s_1080["sensores_spawn"]
 	var sens_720: PackedFloat64Array = s_720["sensores_spawn"]
 	var max_diff_sens := 0.0
-	for i in range(7):
+	for i in range(14):
 		max_diff_sens = maxf(max_diff_sens, absf(sens_1080[i] - sens_720[i]))
 	var diff_pos := (s_1080["pos_20"] as Vector2).distance_to(s_720["pos_20"] as Vector2)
 	var diff_desp := absf(float(s_1080["desp_20"]) - float(s_720["desp_20"]))

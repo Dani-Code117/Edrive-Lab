@@ -1,15 +1,15 @@
 class_name RedNeuronal
 extends RefCounted
 
-## Red neuronal feedforward 7 -> 6 -> 2 con activación tanh() para VehiculoAgente.
-## Mantiene instantáneas públicas de activación (ultimas_entradas, ultimas_ocultas,
-## ultimas_salidas) para el visor en vivo de Fase 4.
+## Red neuronal feedforward 18 -> 8 -> 2 con activación tanh() para VehiculoAgente.
+## Entradas: 14 RayCast2D (11 frontales + 3 traseros) + 2 Brújula CP + 2 Estado/Memoria.
+## Salidas: aceleración [-1.0, 1.0] (incluye reversa) y giro [-1.0, 1.0].
 
-const NUM_ENTRADAS: int = 7
-const NUM_OCULTA: int = 6
+const NUM_ENTRADAS: int = 18
+const NUM_OCULTA: int = 8
 const NUM_SALIDA: int = 2
-const TOTAL_PESOS_OCULTA: int = NUM_ENTRADAS * NUM_OCULTA        # 42
-const TOTAL_PESOS_SALIDA: int = NUM_OCULTA * NUM_SALIDA          # 12
+const TOTAL_PESOS_OCULTA: int = NUM_ENTRADAS * NUM_OCULTA        # 144
+const TOTAL_PESOS_SALIDA: int = NUM_OCULTA * NUM_SALIDA          # 16
 const LIMITE_PESO: float = 10.0
 const LIMITE_PREACTIVACION: float = 50.0
 
@@ -96,7 +96,7 @@ func evaluar(entradas: PackedFloat64Array) -> PackedFloat64Array:
 
 	var t0 := tanh(raw_salidas[0])
 	var t1 := tanh(raw_salidas[1])
-	var aceleracion: float = clampf((t0 + 1.0) * 0.5, 0.0, 1.0) if is_finite(t0) else 0.5
+	var aceleracion: float = clampf(t0, -1.0, 1.0) if is_finite(t0) else 0.0
 	var giro: float = clampf(t1, -1.0, 1.0) if is_finite(t1) else 0.0
 
 	ultimas_salidas[0] = aceleracion
@@ -232,22 +232,32 @@ static func cargar_nivel_o_fallback(p_nivel: int) -> RedNeuronal:
 	var red := RedNeuronal.new()
 	red.inicializar_aleatorio(1000 + nivel_seguro * 37, 0.15 if nivel_seguro > 1 else 0.85)
 
-	# Inyectar una respuesta base diferenciada según nivel (sensor 0..2 izq, 3 frente, 4..6 der)
+	# Inyectar una respuesta base diferenciada según nivel (sensores 0..4 izq, 5 frente, 6..10 der, 11..13 atrás, 14..15 CP, 16..17 estado)
 	var ganancia_giro := lerpf(0.25, 1.4, float(nivel_seguro - 1) / 9.0)
-	var ganancia_vel := lerpf(0.2, 1.1, float(nivel_seguro - 1) / 9.0)
+	var ganancia_vel := lerpf(0.3, 1.3, float(nivel_seguro - 1) / 9.0)
 	if nivel_seguro > 1:
-		# Neurona oculta 0: sesgo derecho - izquierdo
-		red.pesos_oculta[0 * NUM_ENTRADAS + 1] = -ganancia_giro
-		red.pesos_oculta[0 * NUM_ENTRADAS + 2] = -ganancia_giro * 0.7
-		red.pesos_oculta[0 * NUM_ENTRADAS + 4] = ganancia_giro * 0.7
-		red.pesos_oculta[0 * NUM_ENTRADAS + 5] = ganancia_giro
-		# Neurona oculta 1: sensor frontal
-		red.pesos_oculta[1 * NUM_ENTRADAS + 3] = ganancia_vel
-		red.sesgos_oculta[1] = -0.25
-		# Salida 0 (aceleración) desde oculta 1
-		red.pesos_salida[0 * NUM_OCULTA + 1] = 1.2
+		# Neurona oculta 0: evasión de muros + orientación hacia checkpoint (entrada 15 = sin_rel)
+		red.pesos_oculta[0 * NUM_ENTRADAS + 1] = -ganancia_giro * 0.5
+		red.pesos_oculta[0 * NUM_ENTRADAS + 2] = -ganancia_giro * 0.8
+		red.pesos_oculta[0 * NUM_ENTRADAS + 3] = -ganancia_giro
+		red.pesos_oculta[0 * NUM_ENTRADAS + 4] = -ganancia_giro * 0.6
+		red.pesos_oculta[0 * NUM_ENTRADAS + 6] = ganancia_giro * 0.6
+		red.pesos_oculta[0 * NUM_ENTRADAS + 7] = ganancia_giro
+		red.pesos_oculta[0 * NUM_ENTRADAS + 8] = ganancia_giro * 0.8
+		red.pesos_oculta[0 * NUM_ENTRADAS + 9] = ganancia_giro * 0.5
+		red.pesos_oculta[0 * NUM_ENTRADAS + 15] = ganancia_giro * 0.9
+		red.sesgos_oculta[0] = -ganancia_giro * 0.45
+
+		# Neurona oculta 1: avance si el frente (5) está libre; reversa si el frente está bloqueado y atrás (12) libre
+		red.pesos_oculta[1 * NUM_ENTRADAS + 5] = ganancia_vel * 2.2
+		red.pesos_oculta[1 * NUM_ENTRADAS + 12] = -0.35
+		red.pesos_oculta[1 * NUM_ENTRADAS + 17] = 0.65
+		red.sesgos_oculta[1] = -0.45
+
+		# Salida 0 (aceleración [-1..1]) desde oculta 1
+		red.pesos_salida[0 * NUM_OCULTA + 1] = 1.6
 		red.sesgos_salida[0] = 0.25
-		# Salida 1 (giro) desde oculta 0
+		# Salida 1 (giro [-1..1]) desde oculta 0
 		red.pesos_salida[1 * NUM_OCULTA + 0] = 1.4
 
 	var info := _obtener_info_nivel_fallback(nivel_seguro)

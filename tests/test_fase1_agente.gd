@@ -141,18 +141,18 @@ func _test_a_capas_escenas_y_sprites() -> void:
 				break
 	_assert_true(hitbox_ok, "Hitbox dentro de limites [-4, 4] x [-2.34, 2.34]")
 
-	_assert_true(car._rayos.size() == 7, "VehiculoAgente tiene exactamente 7 RayCast2D")
-	var angulos_esperados: Array[float] = [-90.0, -45.0, -15.0, 0.0, 15.0, 45.0, 90.0]
-	var rayos_ok := car._rayos.size() == 7
+	_assert_true(car._rayos.size() == 14, "VehiculoAgente tiene exactamente 14 RayCast2D")
+	var angulos_esperados: Array[float] = [-90.0, -60.0, -40.0, -25.0, -12.0, 0.0, 12.0, 25.0, 40.0, 60.0, 90.0, -135.0, 180.0, 135.0]
+	var rayos_ok := car._rayos.size() == 14
 	if rayos_ok:
-		for i in range(7):
+		for i in range(14):
 			var rayo := car._rayos[i]
 			var diff_ang := absf(angle_difference(rayo.target_position.angle(), deg_to_rad(angulos_esperados[i])))
-			var diff_len := absf(rayo.target_position.length() - 80.0)
+			var diff_len := absf(rayo.target_position.length() - VehiculoAgente.LONGITUD_RAYO)
 			if not rayo.enabled or rayo.collision_mask != 1 or rayo.collide_with_areas or not rayo.collide_with_bodies or diff_ang >= 0.01 or diff_len >= 0.1:
 				rayos_ok = false
 				break
-	_assert_true(rayos_ok, "7 RayCast2D (-90..+90, 80px, mask=1, bodies=true, areas=false)")
+	_assert_true(rayos_ok, "14 RayCast2D (11 frontales + 3 traseros, %.0fpx, mask=1, bodies=true, areas=false)" % VehiculoAgente.LONGITUD_RAYO)
 
 	var escena_cp := load(RUTA_CHECKPOINT) as PackedScene
 	var cp := escena_cp.instantiate() as CheckpointArea
@@ -185,27 +185,27 @@ func _test_b_lectura_normalizada_sensores() -> void:
 	car.cerebro = MockCerebro.new(0.0, 0.0)
 	await _esperar_fisicas(2)
 
-	var esperado_30px := 30.0 / 80.0 # 0.375
+	var esperado_30px := 30.0 / VehiculoAgente.LONGITUD_RAYO
 	_assert_true(
-		absf(car.lecturas_sensores[3] - esperado_30px) <= 0.02,
-		"Sensor frontal detecta muro a 30px -> ~0.375 (obtenido: %.3f)" % car.lecturas_sensores[3]
+		absf(car.lecturas_sensores[5] - esperado_30px) <= 0.02,
+		"Sensor frontal detecta muro a 30px -> ~%.3f (obtenido: %.3f)" % [esperado_30px, car.lecturas_sensores[5]]
 	)
 	_assert_true(
-		is_equal_approx(car.lecturas_sensores[0], 1.0) and is_equal_approx(car.lecturas_sensores[6], 1.0),
+		is_equal_approx(car.lecturas_sensores[0], 1.0) and is_equal_approx(car.lecturas_sensores[10], 1.0),
 		"Sensores laterales despejados (-90 y +90) retornan 1.0"
 	)
 
 	muro.position = Vector2(15, 0) # Cara izquierda en x = 5
 	await _esperar_fisicas(2)
 	_assert_true(
-		car.lecturas_sensores[3] >= 0.0 and car.lecturas_sensores[3] < 0.10,
-		"Sensor frontal cercano (5px) retorna valor proximo a 0.0 (obtenido: %.3f)" % car.lecturas_sensores[3]
+		car.lecturas_sensores[5] >= 0.0 and car.lecturas_sensores[5] < 0.10,
+		"Sensor frontal cercano (5px) retorna valor proximo a 0.0 (obtenido: %.3f)" % car.lecturas_sensores[5]
 	)
 
-	muro.position = Vector2(200, 0) # Fuera de rango (190px > 80px)
+	muro.position = Vector2(200, 0) # Fuera de rango (190px > 160px)
 	await _esperar_fisicas(2)
 	_assert_true(
-		is_equal_approx(car.lecturas_sensores[3], 1.0),
+		is_equal_approx(car.lecturas_sensores[5], 1.0),
 		"Sensor frontal sin obstaculo en rango retorna 1.0"
 	)
 
@@ -504,7 +504,7 @@ func _test_h_resistencia_nan_y_no_finitos() -> void:
 		"Test (h1): comandos de cerebro [NAN, NAN] se sanean a (0.0, 0.0)"
 	)
 
-	var sensores_ok := car.lecturas_sensores.size() == 7
+	var sensores_ok := car.lecturas_sensores.size() == 14
 	if sensores_ok:
 		for s in car.lecturas_sensores:
 			if not is_finite(s) or s < 0.0 or s > 1.0:
@@ -612,7 +612,7 @@ func _test_h_resistencia_nan_y_no_finitos() -> void:
 	car.ultimo_giro_ia = -0.88
 	car.lecturas_sensores = PackedFloat64Array([0.1, 0.2, 0.3])
 	car.reiniciar_estado(Vector2.ZERO, 0.0, 3)
-	var sensores_reiniciados := car.lecturas_sensores.size() == 7
+	var sensores_reiniciados := car.lecturas_sensores.size() == 14
 	if sensores_reiniciados:
 		for s in car.lecturas_sensores:
 			if not is_equal_approx(s, 1.0):
@@ -622,7 +622,7 @@ func _test_h_resistencia_nan_y_no_finitos() -> void:
 		is_equal_approx(car.ultima_aceleracion_ia, 0.0)
 		and is_equal_approx(car.ultimo_giro_ia, 0.0)
 		and sensores_reiniciados,
-		"Test (h5): reiniciar_estado() reinicia ultima_aceleracion_ia, ultimo_giro_ia y 7 lecturas_sensores a 1.0"
+		"Test (h5): reiniciar_estado() reinicia ultima_aceleracion_ia, ultimo_giro_ia y 14 lecturas_sensores a 1.0"
 	)
 
 	car.tiempo_max_sin_checkpoint = NAN

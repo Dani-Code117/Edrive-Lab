@@ -1,18 +1,24 @@
 class_name VehiculoAgente
 extends CharacterBody2D
 
-## Agente vehículo con 7 sensores RayCast2D, físicas personalizables
+## Agente vehículo con 14 sensores RayCast2D (11 frontales + 3 traseros), físicas personalizables
 ## (velocidad máxima, aceleración, frenado, control y agarre) y control de vueltas.
 
 signal chocado(vehiculo: VehiculoAgente, motivo: String)
 signal checkpoint_alcanzado(vehiculo: VehiculoAgente, id_checkpoint: int, vuelta: int)
 
-const ANGULOS_SENSORES: Array[float] = [-90.0, -45.0, -15.0, 0.0, 15.0, 45.0, 90.0]
-const LONGITUD_RAYO: float = 80.0
+const ANGULOS_SENSORES: Array[float] = [
+	-90.0, -60.0, -40.0, -25.0, -12.0, 0.0, 12.0, 25.0, 40.0, 60.0, 90.0,
+	-135.0, 180.0, 135.0,
+]
+const NUM_SENSORES: int = 14
+const NUM_ENTRADAS_IA: int = 18 # 14 RayCast2D + 2 Brújula CP (cos, sin) + 2 Estado (vel, mem_acel)
+const LONGITUD_RAYO: float = 160.0
 const RUTA_SPRITE_COCHE := "res://Assets/Sprites/coche_base.png"
 
 @export var control_manual: bool = false
 @export var mostrar_sensores: bool = true
+@export var longitud_rayo: float = LONGITUD_RAYO
 @export var tiempo_max_sin_checkpoint: float = 4.0
 
 var nombre_vehiculo: String = "Vehículo"
@@ -43,7 +49,8 @@ var checkpoints_cruzados: int = 0
 var vuelta_actual: int = 1
 var tiempo_sin_checkpoint: float = 0.0
 
-var lecturas_sensores: PackedFloat64Array = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+var lecturas_sensores: PackedFloat64Array = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+var posiciones_checkpoints: PackedVector2Array = PackedVector2Array()
 var ultima_aceleracion_ia: float = 0.0
 var ultimo_giro_ia: float = 0.0
 
@@ -94,8 +101,8 @@ func reiniciar_estado(pos: Vector2, rot: float, cant_checkpoints: int = 0) -> vo
 	tiempo_sin_checkpoint = 0.0
 	ultima_aceleracion_ia = 0.0
 	ultimo_giro_ia = 0.0
-	if lecturas_sensores.size() != 7:
-		lecturas_sensores.resize(7)
+	if lecturas_sensores.size() != ANGULOS_SENSORES.size():
+		lecturas_sensores.resize(ANGULOS_SENSORES.size())
 	lecturas_sensores.fill(1.0)
 	if sprite != null:
 		sprite.modulate = color_vehiculo
@@ -138,15 +145,18 @@ func _configurar_rayos() -> void:
 		if hijo is RayCast2D:
 			_rayos.append(hijo)
 
+	var dist_rayo := _obtener_longitud_rayo()
 	if _rayos.is_empty():
 		for i in range(ANGULOS_SENSORES.size()):
 			var rayo := RayCast2D.new()
 			rayo.name = "Ray%d" % i
-			rayo.target_position = Vector2.RIGHT.rotated(deg_to_rad(ANGULOS_SENSORES[i])) * LONGITUD_RAYO
 			nodo_sensores.add_child(rayo)
 			_rayos.append(rayo)
 
-	for rayo in _rayos:
+	for i in range(_rayos.size()):
+		var rayo := _rayos[i]
+		if i < ANGULOS_SENSORES.size():
+			rayo.target_position = Vector2.RIGHT.rotated(deg_to_rad(ANGULOS_SENSORES[i])) * dist_rayo
 		rayo.enabled = true
 		rayo.collision_mask = 1 # Layer 1: Muros_Pasto
 		rayo.collide_with_areas = false
@@ -210,13 +220,18 @@ func _physics_process(delta: float) -> void:
 		_marcar_chocado("Chocado")
 
 
+func _obtener_longitud_rayo() -> float:
+	return _sanitizar_float(longitud_rayo, 10.0, 2000.0, LONGITUD_RAYO)
+
+
 func _actualizar_sensores() -> void:
-	for i in range(mini(_rayos.size(), 7)):
+	var dist_rayo := _obtener_longitud_rayo()
+	for i in range(mini(_rayos.size(), ANGULOS_SENSORES.size())):
 		var rayo := _rayos[i]
 		rayo.force_raycast_update()
 		if rayo.is_colliding():
 			var dist := global_position.distance_to(rayo.get_collision_point())
-			lecturas_sensores[i] = _sanitizar_float(dist / LONGITUD_RAYO, 0.0, 1.0, 1.0)
+			lecturas_sensores[i] = _sanitizar_float(dist / dist_rayo, 0.0, 1.0, 1.0)
 		else:
 			lecturas_sensores[i] = 1.0
 
@@ -237,14 +252,41 @@ func _obtener_comandos() -> Vector2:
 		return Vector2(_sanitizar_float(acel, -1.0, 1.0, 0.0), _sanitizar_float(giro, -1.0, 1.0, 0.0))
 
 	if cerebro != null and cerebro.has_method("evaluar"):
-		var salida: Variant = cerebro.evaluar(lecturas_sensores)
+		var entradas_ia := _construir_entradas_ia()
+		var salida: Variant = cerebro.evaluar(entradas_ia)
 		if (salida is PackedFloat64Array or salida is PackedFloat32Array or salida is Array) and salida.size() >= 2:
 			return Vector2(
-				_sanitizar_float(salida[0], 0.0, 1.0, 0.0),
+				_sanitizar_float(salida[0], -1.0, 1.0, 0.0),
 				_sanitizar_float(salida[1], -1.0, 1.0, 0.0)
 			)
 
 	return Vector2.ZERO
+
+
+func _construir_entradas_ia() -> PackedFloat64Array:
+	var entradas := PackedFloat64Array()
+	entradas.resize(NUM_ENTRADAS_IA)
+	for i in range(NUM_SENSORES):
+		entradas[i] = lecturas_sensores[i] if i < lecturas_sensores.size() else 1.0
+
+	# Brújula al siguiente checkpoint: (cos(ang_rel)+1)*0.5, (sin(ang_rel)+1)*0.5
+	var cp_cos := 1.0
+	var cp_sin := 0.5
+	if not posiciones_checkpoints.is_empty():
+		var idx_sig := (ultimo_checkpoint + 1) % posiciones_checkpoints.size()
+		var vec_cp := posiciones_checkpoints[idx_sig] - global_position
+		if vec_cp.length_squared() > 1e-4:
+			var ang_rel := angle_difference(rotation, vec_cp.angle())
+			cp_cos = _sanitizar_float((cos(ang_rel) + 1.0) * 0.5, 0.0, 1.0, 1.0)
+			cp_sin = _sanitizar_float((sin(ang_rel) + 1.0) * 0.5, 0.0, 1.0, 0.5)
+	entradas[14] = cp_cos
+	entradas[15] = cp_sin
+
+	# Estado de movimiento y memoria de la acción previa
+	var vel_norm := (velocidad_actual / maxf(vel_max, 1.0) + 1.0) * 0.5
+	entradas[16] = _sanitizar_float(vel_norm, 0.0, 1.0, 0.5)
+	entradas[17] = _sanitizar_float((ultima_aceleracion_ia + 1.0) * 0.5, 0.0, 1.0, 0.5)
+	return entradas
 
 
 func _sanitizar_float(valor: Variant, min_val: float, max_val: float, defecto: float) -> float:
@@ -276,10 +318,11 @@ func _marcar_chocado(motivo: String) -> void:
 func _on_dibujo_sensores_draw() -> void:
 	if not mostrar_sensores or esta_chocado:
 		return
-	for i in range(mini(_rayos.size(), 7)):
+	var dist_rayo := _obtener_longitud_rayo()
+	for i in range(mini(_rayos.size(), ANGULOS_SENSORES.size())):
 		var norm := _sanitizar_float(lecturas_sensores[i], 0.0, 1.0, 1.0)
 		var dir := Vector2.RIGHT.rotated(deg_to_rad(ANGULOS_SENSORES[i]))
-		var fin := dir * (norm * LONGITUD_RAYO)
+		var fin := dir * (norm * dist_rayo)
 		var col := Color(1.0 - norm, norm, 0.2, 0.75)
 		dibujo_sensores.draw_line(Vector2.ZERO, fin, col, 1.5)
 		if norm < 0.99:

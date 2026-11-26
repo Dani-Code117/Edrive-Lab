@@ -6,6 +6,7 @@
 collision_layer = 2
 motion_mode = 1
 script = ExtResource("1_agente")
+tiempo_max_sin_checkpoint = 8.0
 
 [node name="SpriteCoche" type="Sprite2D" parent="." unique_id=2033837391]
 texture_filter = 1
@@ -17,25 +18,46 @@ polygon = PackedVector2Array(-4, -2.3, 3.67, -2, 4, 0, 3.67, 2, -4, 2.3)
 [node name="Sensores" type="Node2D" parent="." unique_id=1008998519]
 
 [node name="Ray0" type="RayCast2D" parent="Sensores" unique_id=2026975082]
-target_position = Vector2(0, -80)
+target_position = Vector2(0, -160)
 
 [node name="Ray1" type="RayCast2D" parent="Sensores" unique_id=1786862534]
-target_position = Vector2(56.569, -56.569)
+target_position = Vector2(80, -138.564)
 
 [node name="Ray2" type="RayCast2D" parent="Sensores" unique_id=1737534346]
-target_position = Vector2(77.274, -20.706)
+target_position = Vector2(122.567, -102.846)
 
 [node name="Ray3" type="RayCast2D" parent="Sensores" unique_id=81670930]
-target_position = Vector2(80, 0)
+target_position = Vector2(145.009, -67.619)
 
 [node name="Ray4" type="RayCast2D" parent="Sensores" unique_id=418162727]
-target_position = Vector2(77.274, 20.706)
+target_position = Vector2(156.504, -33.266)
 
 [node name="Ray5" type="RayCast2D" parent="Sensores" unique_id=704416926]
-target_position = Vector2(56.569, 56.569)
+target_position = Vector2(160, 0)
 
 [node name="Ray6" type="RayCast2D" parent="Sensores" unique_id=1824152249]
-target_position = Vector2(0, 80)
+target_position = Vector2(156.504, 33.266)
+
+[node name="Ray7" type="RayCast2D" parent="Sensores" unique_id=1901122334]
+target_position = Vector2(145.009, 67.619)
+
+[node name="Ray8" type="RayCast2D" parent="Sensores" unique_id=1901122335]
+target_position = Vector2(122.567, 102.846)
+
+[node name="Ray9" type="RayCast2D" parent="Sensores" unique_id=1901122336]
+target_position = Vector2(80, 138.564)
+
+[node name="Ray10" type="RayCast2D" parent="Sensores" unique_id=1901122337]
+target_position = Vector2(0, 160)
+
+[node name="Ray11" type="RayCast2D" parent="Sensores" unique_id=1901122338]
+target_position = Vector2(-113.137, -113.137)
+
+[node name="Ray12" type="RayCast2D" parent="Sensores" unique_id=1901122339]
+target_position = Vector2(-160, 0)
+
+[node name="Ray13" type="RayCast2D" parent="Sensores" unique_id=1901122340]
+target_position = Vector2(-113.137, 113.137)
 
 [node name="DibujoSensores" type="Node2D" parent="." unique_id=89133410]
 z_index = 2

@@ -2,15 +2,15 @@ class_name CerebroEntrenado
 extends Resource
 
 ## Recurso serializable (.tres) que almacena los pesos, sesgos y metadatos
-## educativos de una red neuronal entrenada (topología fija 7 -> 6 -> 2).
+## educativos de una red neuronal entrenada (topología fija 18 -> 8 -> 2).
 
 const RUTA_DIRECTORIO_PRESETS := "res://Assets/Presets_ia/"
 const PATRON_RUTA_PRESET := "res://Assets/Presets_ia/nivel_%02d.tres"
-const NUM_ENTRADAS_ESPERADO: int = 7
-const NUM_OCULTA_ESPERADO: int = 6
+const NUM_ENTRADAS_ESPERADO: int = 18
+const NUM_OCULTA_ESPERADO: int = 8
 const NUM_SALIDA_ESPERADO: int = 2
-const TOTAL_PESOS_OCULTA: int = NUM_ENTRADAS_ESPERADO * NUM_OCULTA_ESPERADO # 42
-const TOTAL_PESOS_SALIDA: int = NUM_OCULTA_ESPERADO * NUM_SALIDA_ESPERADO   # 12
+const TOTAL_PESOS_OCULTA: int = NUM_ENTRADAS_ESPERADO * NUM_OCULTA_ESPERADO # 144
+const TOTAL_PESOS_SALIDA: int = NUM_OCULTA_ESPERADO * NUM_SALIDA_ESPERADO   # 16
 
 @export_range(1, 10) var nivel: int = 1
 @export var titulo: String = ""
