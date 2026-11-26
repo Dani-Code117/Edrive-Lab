@@ -196,8 +196,9 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		DatosSimulacion.config_vehiculos[indice]["color"] = color_coche
 
 	var raw_nombre: Variant = cfg.get("nombre", "")
-	var nombre_coche: String = str(raw_nombre) if raw_nombre != null and not str(raw_nombre).is_empty() else "Vehículo %d" % (indice + 1)
-	if raw_nombre == null or not (raw_nombre is String) or str(raw_nombre).is_empty():
+	var nombre_invalido := raw_nombre == null or not (raw_nombre is String) or str(raw_nombre).strip_edges().is_empty()
+	var nombre_coche: String = "Vehículo %d" % (indice + 1) if nombre_invalido else str(raw_nombre)
+	if nombre_invalido:
 		DatosSimulacion.config_vehiculos[indice]["nombre"] = nombre_coche
 
 	var franja: ColorRect = tarjeta.get_node("VBox/FranjaColor")
@@ -227,7 +228,7 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		var etiqueta: String = atr["etiqueta"]
 		var raw_val: Variant = cfg.get(clave, 0.5)
 		var valor_inicial: float = _sanitizar_normalizado(raw_val, 0.5)
-		if not (raw_val is float or raw_val is int) or not is_finite(float(raw_val)):
+		if not (raw_val is float or raw_val is int) or not is_finite(float(raw_val)) or not is_equal_approx(float(raw_val), valor_inicial):
 			DatosSimulacion.config_vehiculos[indice][clave] = valor_inicial
 
 		var fila := VBoxContainer.new()

@@ -291,14 +291,14 @@ static func _trazar_ciclo(eje: Dictionary, inicio: Vector2i) -> Array[Vector2i]:
 	if not eje.has(inicio):
 		return []
 
+	var min_largo_cps := maxi(MIN_CELDAS_CIRCUITO, PASO_CHECKPOINT * 3 + 1)
 	var ruta: Array[Vector2i] = [inicio]
 	var visitadas: Dictionary = {inicio: true}
 	var pasos_restantes := [maxi(eje.size() * 16, 512)]
-	if _dfs_ciclo(eje, inicio, inicio, ruta, visitadas, pasos_restantes):
+	if _dfs_ciclo(eje, inicio, inicio, ruta, visitadas, pasos_restantes, min_largo_cps):
 		return ruta
 
 	# Fallback determinista O(|V|) para mallas con múltiples huecos donde el DFS agota pasos.
-	var min_largo_cps := maxi(MIN_CELDAS_CIRCUITO, PASO_CHECKPOINT * 3 + 1)
 	var ciclo_planar := _trazar_ciclo_planar(eje, inicio, min_largo_cps)
 	if ciclo_planar.size() >= min_largo_cps:
 		return ciclo_planar
@@ -318,14 +318,15 @@ static func _dfs_ciclo(
 	actual: Vector2i,
 	ruta: Array[Vector2i],
 	visitadas: Dictionary,
-	pasos_restantes: Array
+	pasos_restantes: Array,
+	min_largo: int = MIN_CELDAS_CIRCUITO
 ) -> bool:
 	if pasos_restantes[0] <= 0:
 		return false
 	pasos_restantes[0] -= 1
 
 	# Cerrar el ciclo si volvemos a estar adyacentes al inicio tras avanzar lo suficiente
-	if ruta.size() >= MIN_CELDAS_CIRCUITO:
+	if ruta.size() >= min_largo:
 		var dist_inicio := actual - inicio
 		if absi(dist_inicio.x) <= 1 and absi(dist_inicio.y) <= 1:
 			return true
@@ -344,7 +345,7 @@ static func _dfs_ciclo(
 	for cand in candidatos:
 		ruta.append(cand)
 		visitadas[cand] = true
-		if _dfs_ciclo(eje, inicio, cand, ruta, visitadas, pasos_restantes):
+		if _dfs_ciclo(eje, inicio, cand, ruta, visitadas, pasos_restantes, min_largo):
 			return true
 		visitadas.erase(cand)
 		ruta.pop_back()
@@ -432,8 +433,37 @@ static func _trazar_ciclo_bfs(eje: Dictionary, inicio: Vector2i, min_largo: int)
 	for v in vecinos_ini:
 		es_vecino_ini[v] = true
 
+	var bloqueadas: Dictionary = {}
+	var mejor_corto := _bfs_ciclo_con_bloqueo(eje, inicio, vecinos_ini, es_vecino_ini, min_largo, bloqueadas)
+	if mejor_corto.size() >= min_largo:
+		return mejor_corto
+
+	if not mejor_corto.is_empty():
+		var largo := _buscar_ciclo_largo_bfs(eje, inicio, vecinos_ini, es_vecino_ini, min_largo, mejor_corto, bloqueadas, 3)
+		if largo.size() >= min_largo:
+			return largo
+
+	return mejor_corto
+
+
+static func _clave_arista(a: Vector2i, b: Vector2i) -> Vector4i:
+	if a.x < b.x or (a.x == b.x and a.y < b.y):
+		return Vector4i(a.x, a.y, b.x, b.y)
+	return Vector4i(b.x, b.y, a.x, a.y)
+
+
+static func _bfs_ciclo_con_bloqueo(
+	eje: Dictionary,
+	inicio: Vector2i,
+	vecinos_ini: Array[Vector2i],
+	es_vecino_ini: Dictionary,
+	min_largo: int,
+	aristas_bloqueadas: Dictionary
+) -> Array[Vector2i]:
 	var mejor_corto: Array[Vector2i] = []
 	for s in vecinos_ini:
+		if aristas_bloqueadas.has(_clave_arista(inicio, s)):
+			continue
 		var padre: Dictionary = {s: inicio}
 		var dist: Dictionary = {s: 1}
 		var cola: Array[Vector2i] = [s]
@@ -452,6 +482,8 @@ static func _trazar_ciclo_bfs(eje: Dictionary, inicio: Vector2i, min_largo: int)
 				var v := u + dir
 				if v == inicio or not _arista_valida_eje(eje, u, v):
 					continue
+				if aristas_bloqueadas.has(_clave_arista(u, v)):
+					continue
 				if not dist.has(v):
 					dist[v] = d + 1
 					padre[v] = u
@@ -460,11 +492,45 @@ static func _trazar_ciclo_bfs(eje: Dictionary, inicio: Vector2i, min_largo: int)
 				var v := u + dir
 				if v == inicio or not _arista_valida_eje(eje, u, v):
 					continue
+				if aristas_bloqueadas.has(_clave_arista(u, v)):
+					continue
 				if not dist.has(v):
 					dist[v] = d + 1
 					padre[v] = u
 					cola.append(v)
 	return mejor_corto
+
+
+static func _buscar_ciclo_largo_bfs(
+	eje: Dictionary,
+	inicio: Vector2i,
+	vecinos_ini: Array[Vector2i],
+	es_vecino_ini: Dictionary,
+	min_largo: int,
+	ciclo_corto: Array[Vector2i],
+	aristas_bloqueadas: Dictionary,
+	prof_restante: int
+) -> Array[Vector2i]:
+	if prof_restante <= 0:
+		return []
+	for i in range(1, ciclo_corto.size() - 1):
+		var k := _clave_arista(ciclo_corto[i], ciclo_corto[i + 1])
+		if aristas_bloqueadas.has(k):
+			continue
+		aristas_bloqueadas[k] = true
+		var cand := _bfs_ciclo_con_bloqueo(eje, inicio, vecinos_ini, es_vecino_ini, min_largo, aristas_bloqueadas)
+		if cand.size() >= min_largo:
+			aristas_bloqueadas.erase(k)
+			return cand
+		if not cand.is_empty() and prof_restante > 1:
+			var mas_largo := _buscar_ciclo_largo_bfs(
+				eje, inicio, vecinos_ini, es_vecino_ini, min_largo, cand, aristas_bloqueadas, prof_restante - 1
+			)
+			if mas_largo.size() >= min_largo:
+				aristas_bloqueadas.erase(k)
+				return mas_largo
+		aristas_bloqueadas.erase(k)
+	return []
 
 
 static func _reconstruir_ciclo_bfs(padre: Dictionary, fin: Vector2i, inicio: Vector2i) -> Array[Vector2i]:

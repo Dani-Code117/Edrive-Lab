@@ -293,6 +293,69 @@ func _test_a_checkpoints_escenas_y_tema(ds: Node) -> void:
 		"Mancuerna con meta en puente (18, 10) falla limpiamente con mensaje esperado"
 	)
 
+	# Regresión Tier 5 Cycle 3: circuitos con huecos 1x1 (swiss_1x1_stride4, asym_fig8 lobe) y anillo 4x4 aislado
+	var swiss_1x1_s4: Dictionary = {}
+	for x in range(1, 44):
+		for y in range(1, 26):
+			swiss_1x1_s4[Vector2i(x, y)] = true
+	for hx in range(4, 41, 4):
+		for hy in range(4, 23, 4):
+			swiss_1x1_s4.erase(Vector2i(hx, hy))
+
+	for meta_s4: Vector2i in [Vector2i(38, 4), Vector2i(39, 5)]:
+		var res_s4 := GeneradorCheckpoints.validar_y_generar(swiss_1x1_s4, meta_s4, true)
+		var eje_s4: Array = res_s4.get("eje_central", [])
+		var cruz_s4 := _calcular_suma_cruz_horaria(eje_s4)
+		_assert_true(
+			res_s4.get("valido", false)
+			and res_s4.get("checkpoints", []).size() >= 3
+			and cruz_s4 > 0.0,
+			"swiss_1x1_stride4 con meta %s valida en sentido horario (%d cps, cruz=%.1f)" % [
+				str(meta_s4), res_s4.get("checkpoints", []).size(), cruz_s4
+			]
+		)
+
+	var asym_fig8_lobe: Dictionary = {}
+	for x in range(6, 20):
+		for y in range(5, 8):
+			asym_fig8_lobe[Vector2i(x, y)] = true
+		for y in range(17, 20):
+			asym_fig8_lobe[Vector2i(x, y)] = true
+	for y in range(5, 20):
+		for x in range(6, 9):
+			asym_fig8_lobe[Vector2i(x, y)] = true
+		for x in range(17, 20):
+			asym_fig8_lobe[Vector2i(x, y)] = true
+	for x in range(18, 24):
+		for y in range(9, 16):
+			asym_fig8_lobe[Vector2i(x, y)] = true
+	asym_fig8_lobe.erase(Vector2i(20, 12))
+
+	for meta_lobe: Vector2i in [Vector2i(21, 11), Vector2i(21, 12), Vector2i(21, 13)]:
+		var res_lobe := GeneradorCheckpoints.validar_y_generar(asym_fig8_lobe, meta_lobe, true)
+		var eje_lobe: Array = res_lobe.get("eje_central", [])
+		var cruz_lobe := _calcular_suma_cruz_horaria(eje_lobe)
+		_assert_true(
+			res_lobe.get("valido", false)
+			and res_lobe.get("checkpoints", []).size() >= 3
+			and cruz_lobe > 0.0,
+			"asym_fig8 lobe con hueco 1x1 y meta %s valida en sentido horario (%d cps, cruz=%.1f)" % [
+				str(meta_lobe), res_lobe.get("checkpoints", []).size(), cruz_lobe
+			]
+		)
+
+	var anillo_4x4: Dictionary = {}
+	for x in range(4, 8):
+		for y in range(4, 8):
+			anillo_4x4[Vector2i(x, y)] = true
+	anillo_4x4.erase(Vector2i(5, 5))
+	var res_4x4 := GeneradorCheckpoints.validar_y_generar(anillo_4x4, Vector2i(4, 4), true)
+	_assert_true(
+		not res_4x4.get("valido", true)
+		and res_4x4.get("mensaje", "") == "El circuito necesita ser un poco más largo para generar checkpoints.",
+		"Anillo 4x4 aislado se rechaza limpiamente por falta de longitud para checkpoints"
+	)
+
 
 static func _calcular_suma_cruz_horaria(ciclo: Array) -> float:
 	if ciclo.size() < 3:
@@ -606,6 +669,30 @@ func _test_d_persistencia_botones_y_presets(ds: Node) -> void:
 	)
 
 	vp_corrupt.queue_free()
+	await _esperar_frames(2)
+
+	# Regresión Tier 5 Cycle 3: reparación al cargar de floats finitos fuera de rango (-5.0 -> 0.0, 99.0 -> 1.0) y nombre solo espacios
+	ds.config_vehiculos = cfg_backup_c2.duplicate(true)
+	ds.config_vehiculos[0]["velocidad_maxima"] = -5.0
+	ds.config_vehiculos[0]["aceleracion"] = 99.0
+	ds.config_vehiculos[0]["nombre"] = "   "
+
+	var vp_rango := SubViewport.new()
+	vp_rango.size = Vector2i(1280, 720)
+	root.add_child(vp_rango)
+
+	var vista_rango := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_rango.add_child(vista_rango)
+	await _esperar_frames(3)
+
+	_assert_true(
+		is_equal_approx(float(ds.config_vehiculos[0]["velocidad_maxima"]), 0.0)
+		and is_equal_approx(float(ds.config_vehiculos[0]["aceleracion"]), 1.0)
+		and ds.config_vehiculos[0]["nombre"] == "Vehículo 1",
+		"Vista 3 repara al cargar floats finitos fuera de rango (-5.0->0.0, 99.0->1.0) y nombre de solo espacios"
+	)
+
+	vp_rango.queue_free()
 	await _esperar_frames(2)
 	ds.config_vehiculos = cfg_backup_c2
 
