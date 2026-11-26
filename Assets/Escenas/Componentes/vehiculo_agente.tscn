@@ -1,49 +1,41 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://b56wypyr2fkkl"]
 
-[ext_resource type="Script" path="res://Assets/Scripts/Agente/vehiculo_agente.gd" id="1_agente"]
+[ext_resource type="Script" uid="uid://bp62lx4emvw8g" path="res://Assets/Scripts/Agente/vehiculo_agente.gd" id="1_agente"]
 
-[node name="VehiculoAgente" type="CharacterBody2D"]
+[node name="VehiculoAgente" type="CharacterBody2D" unique_id=1541514701]
 collision_layer = 2
-collision_mask = 1
 motion_mode = 1
 script = ExtResource("1_agente")
 
-[node name="SpriteCoche" type="Sprite2D" parent="."]
+[node name="SpriteCoche" type="Sprite2D" parent="." unique_id=2033837391]
 texture_filter = 1
 scale = Vector2(0.333333, 0.333333)
 
-[node name="Hitbox" type="CollisionPolygon2D" parent="."]
+[node name="Hitbox" type="CollisionPolygon2D" parent="." unique_id=1928316444]
 polygon = PackedVector2Array(-4, -2.3, 3.67, -2, 4, 0, 3.67, 2, -4, 2.3)
 
-[node name="Sensores" type="Node2D" parent="."]
+[node name="Sensores" type="Node2D" parent="." unique_id=1008998519]
 
-[node name="Ray0" type="RayCast2D" parent="Sensores"]
+[node name="Ray0" type="RayCast2D" parent="Sensores" unique_id=2026975082]
 target_position = Vector2(0, -80)
-collision_mask = 1
 
-[node name="Ray1" type="RayCast2D" parent="Sensores"]
+[node name="Ray1" type="RayCast2D" parent="Sensores" unique_id=1786862534]
 target_position = Vector2(56.569, -56.569)
-collision_mask = 1
 
-[node name="Ray2" type="RayCast2D" parent="Sensores"]
+[node name="Ray2" type="RayCast2D" parent="Sensores" unique_id=1737534346]
 target_position = Vector2(77.274, -20.706)
-collision_mask = 1
 
-[node name="Ray3" type="RayCast2D" parent="Sensores"]
+[node name="Ray3" type="RayCast2D" parent="Sensores" unique_id=81670930]
 target_position = Vector2(80, 0)
-collision_mask = 1
 
-[node name="Ray4" type="RayCast2D" parent="Sensores"]
+[node name="Ray4" type="RayCast2D" parent="Sensores" unique_id=418162727]
 target_position = Vector2(77.274, 20.706)
-collision_mask = 1
 
-[node name="Ray5" type="RayCast2D" parent="Sensores"]
+[node name="Ray5" type="RayCast2D" parent="Sensores" unique_id=704416926]
 target_position = Vector2(56.569, 56.569)
-collision_mask = 1
 
-[node name="Ray6" type="RayCast2D" parent="Sensores"]
+[node name="Ray6" type="RayCast2D" parent="Sensores" unique_id=1824152249]
 target_position = Vector2(0, 80)
-collision_mask = 1
 
-[node name="DibujoSensores" type="Node2D" parent="."]
+[node name="DibujoSensores" type="Node2D" parent="." unique_id=89133410]
 z_index = 2
