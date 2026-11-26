@@ -1,7 +1,7 @@
 extends Node2D
 
 ## Lienzo interactivo del Creador de Mapas (Vista 2).
-## Gestiona el TileMapLayer 32x32, la brocha 3x3, el borrador, la meta
+## Gestiona el TileMapLayer 16x16, la brocha 3x3, el borrador, la meta
 ## y la validación continua del circuito cerrado.
 
 signal pista_actualizada(es_valida: bool, mensaje_estado: String)
@@ -354,7 +354,7 @@ func _on_overlay_draw() -> void:
 		var cps: Array = ultima_validacion.get("checkpoints", [])
 		for i in range(cps.size()):
 			var centro_cp := Vector2(cps[i]) * tam + Vector2.ONE * (tam * 0.5)
-			overlay.draw_circle(centro_cp, 4.0, Color(0.2, 0.85, 1.0, 0.75))
+			overlay.draw_circle(centro_cp, 2.5, Color(0.2, 0.85, 1.0, 0.75))
 
 	# 4. Marcador de meta
 	if tiene_meta:
@@ -371,7 +371,7 @@ func _on_overlay_draw() -> void:
 			var rot: float = ultima_validacion.get("rotacion_salida", 0.0)
 			var centro_m := pm + Vector2.ONE * (tam * 0.5)
 			var dir := Vector2.RIGHT.rotated(rot)
-			overlay.draw_line(centro_m, centro_m + dir * 24.0, Color(1.0, 0.85, 0.15, 0.95), 3.0)
+			overlay.draw_line(centro_m, centro_m + dir * 12.0, Color(1.0, 0.85, 0.15, 0.95), 2.0)
 
 	# 5. Previsualización de la brocha bajo el cursor (solo en modo edición)
 	if not _modo_vista_previa and _celda_en_tablero(_celda_hover):

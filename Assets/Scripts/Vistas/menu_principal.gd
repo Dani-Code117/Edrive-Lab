@@ -1,9 +1,9 @@
 extends Control
 
-const ESCENA_SIGUIENTE := "res://Assets/Escenas/Vistas/creador_mapa.tscn"
+const ESCENA_CREADOR_MAPA := "res://Assets/Escenas/Vistas/creador_mapa.tscn"
 
-@onready var btn_iniciar: Button = $CenterContainer/VBoxContainer/Botones/BtnIniciar
-@onready var btn_salir: Button = $CenterContainer/VBoxContainer/Botones/BtnSalir
+@onready var btn_iniciar: Button = $MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/Botones/BtnIniciar
+@onready var btn_salir: Button = $MarginContainer/CenterContainer/PanelCard/CardMargin/VBoxPrincipal/Botones/BtnSalir
 
 
 func _ready() -> void:
@@ -13,10 +13,10 @@ func _ready() -> void:
 
 
 func _on_btn_iniciar_pressed() -> void:
-	if ResourceLoader.exists(ESCENA_SIGUIENTE):
-		get_tree().change_scene_to_file(ESCENA_SIGUIENTE)
+	if ResourceLoader.exists(ESCENA_CREADOR_MAPA):
+		get_tree().change_scene_to_file(ESCENA_CREADOR_MAPA)
 	else:
-		print("Edrive-Lab: La escena '%s' aún no está implementada." % ESCENA_SIGUIENTE)
+		print("Edrive-Lab: La escena '%s' aún no está implementada." % ESCENA_CREADOR_MAPA)
 
 
 func _on_btn_salir_pressed() -> void:
