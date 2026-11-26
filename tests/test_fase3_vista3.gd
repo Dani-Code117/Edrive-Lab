@@ -186,6 +186,129 @@ func _test_a_checkpoints_escenas_y_tema(ds: Node) -> void:
 		"Meta colocada sobre espolon muerto falla con mensaje esperado"
 	)
 
+	# Regresión Tier 5 Cycle 2: mallas con múltiples huecos (grid6, grid8, swiss) y mancuerna (lóbulo vs puente)
+	var grid6: Dictionary = {}
+	for x in range(2, 39):
+		for y in range(2, 5):
+			grid6[Vector2i(x, y)] = true
+		for y in range(12, 15):
+			grid6[Vector2i(x, y)] = true
+		for y in range(22, 25):
+			grid6[Vector2i(x, y)] = true
+	for y in range(2, 25):
+		for x in range(2, 5):
+			grid6[Vector2i(x, y)] = true
+		for x in range(13, 16):
+			grid6[Vector2i(x, y)] = true
+		for x in range(25, 28):
+			grid6[Vector2i(x, y)] = true
+		for x in range(36, 39):
+			grid6[Vector2i(x, y)] = true
+
+	for meta_g6: Vector2i in [Vector2i(3, 8), Vector2i(3, 18)]:
+		var res_g6 := GeneradorCheckpoints.validar_y_generar(grid6, meta_g6, true)
+		var eje_g6: Array = res_g6.get("eje_central", [])
+		var suma_cruz_g6 := _calcular_suma_cruz_horaria(eje_g6)
+		_assert_true(
+			res_g6.get("valido", false)
+			and res_g6.get("checkpoints", []).size() >= 3
+			and suma_cruz_g6 > 0.0,
+			"grid6 con meta %s valida en sentido horario (%d cps, cruz=%.1f)" % [
+				str(meta_g6), res_g6.get("checkpoints", []).size(), suma_cruz_g6
+			]
+		)
+
+	var grid8: Dictionary = {}
+	for x in range(2, 42):
+		for y in range(2, 5):
+			grid8[Vector2i(x, y)] = true
+		for y in range(12, 15):
+			grid8[Vector2i(x, y)] = true
+		for y in range(22, 25):
+			grid8[Vector2i(x, y)] = true
+	for y in range(2, 25):
+		for vx in [2, 12, 21, 30, 39]:
+			for dx in range(3):
+				grid8[Vector2i(vx + dx, y)] = true
+
+	var res_g8 := GeneradorCheckpoints.validar_y_generar(grid8, Vector2i(3, 8), true)
+	_assert_true(
+		res_g8.get("valido", false) and res_g8.get("checkpoints", []).size() >= 3,
+		"grid8 con meta (3, 8) valida correctamente (%d cps)" % res_g8.get("checkpoints", []).size()
+	)
+
+	var swiss: Dictionary = {}
+	for x in range(1, 44):
+		for y in range(1, 26):
+			swiss[Vector2i(x, y)] = true
+	for hx in range(4, 41, 4):
+		for hy in range(4, 23, 3):
+			swiss.erase(Vector2i(hx, hy))
+			swiss.erase(Vector2i(hx + 1, hy))
+
+	for meta_sw: Vector2i in [Vector2i(2, 2), Vector2i(15, 12)]:
+		var res_sw := GeneradorCheckpoints.validar_y_generar(swiss, meta_sw, true)
+		_assert_true(
+			res_sw.get("valido", false) and res_sw.get("checkpoints", []).size() >= 3,
+			"swiss_43x25_many_holes con meta %s valida correctamente (%d cps)" % [
+				str(meta_sw), res_sw.get("checkpoints", []).size()
+			]
+		)
+
+	# Mancuerna: lóbulo izquierdo + puente 3-celdas + lóbulo derecho
+	var mancuerna: Dictionary = {}
+	for x in range(4, 15):
+		for y in range(5, 8):
+			mancuerna[Vector2i(x, y)] = true
+		for y in range(13, 16):
+			mancuerna[Vector2i(x, y)] = true
+	for y in range(5, 16):
+		for x in range(4, 7):
+			mancuerna[Vector2i(x, y)] = true
+		for x in range(12, 15):
+			mancuerna[Vector2i(x, y)] = true
+	for x in range(15, 22):
+		for y in range(9, 12):
+			mancuerna[Vector2i(x, y)] = true
+	for x in range(22, 33):
+		for y in range(5, 8):
+			mancuerna[Vector2i(x, y)] = true
+		for y in range(13, 16):
+			mancuerna[Vector2i(x, y)] = true
+	for y in range(5, 16):
+		for x in range(22, 25):
+			mancuerna[Vector2i(x, y)] = true
+		for x in range(30, 33):
+			mancuerna[Vector2i(x, y)] = true
+
+	var res_manc_lob := GeneradorCheckpoints.validar_y_generar(mancuerna, Vector2i(5, 10), true)
+	_assert_true(
+		res_manc_lob.get("valido", false) and res_manc_lob.get("checkpoints", []).size() >= 3,
+		"Mancuerna con meta en lobulo izquierdo (5, 10) valida correctamente (%d cps)" % res_manc_lob.get("checkpoints", []).size()
+	)
+	var res_manc_puente := GeneradorCheckpoints.validar_y_generar(mancuerna, Vector2i(18, 10), true)
+	_assert_true(
+		not res_manc_puente.get("valido", true)
+		and res_manc_puente.get("mensaje", "") == "Asegúrate de que la meta esté sobre el lazo cerrado del circuito.",
+		"Mancuerna con meta en puente (18, 10) falla limpiamente con mensaje esperado"
+	)
+
+
+static func _calcular_suma_cruz_horaria(ciclo: Array) -> float:
+	if ciclo.size() < 3:
+		return 0.0
+	var centroide := Vector2.ZERO
+	for p in ciclo:
+		centroide += Vector2(p)
+	centroide /= float(ciclo.size())
+	var suma := 0.0
+	var n := ciclo.size()
+	for i in range(n):
+		var p1 := Vector2(ciclo[i]) - centroide
+		var p2 := Vector2(ciclo[(i + 1) % n]) - centroide
+		suma += p1.x * p2.y - p1.y * p2.x
+	return suma
+
 
 func _test_b_minimapa_vacio_y_poblado(ds: Node) -> void:
 	print("--- Test (b): Minimapa Pista Confirmada (vacio y poblado) ---")
@@ -409,6 +532,82 @@ func _test_d_persistencia_botones_y_presets(ds: Node) -> void:
 	vp_nan.queue_free()
 	await _esperar_frames(2)
 	ds.config_vehiculos = cfg_backup
+
+	# Regresión Tier 5 Cycle 2: preservación exacta 0.83 (step=0.01) y saneamiento de color/nombre/nivel_ia al cargar
+	var cfg_backup_c2: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.config_vehiculos[0]["agarre"] = 0.83
+	ds.config_vehiculos[1]["velocidad_maxima"] = 0.83
+
+	var vp_083 := SubViewport.new()
+	vp_083.size = Vector2i(1280, 720)
+	root.add_child(vp_083)
+
+	var vista_083 := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_083.add_child(vista_083)
+	await _esperar_frames(3)
+
+	var fila_agarre0: Node = vista_083.contenedor_tarjetas.get_child(0).get_node("VBox/Margin/Cuerpo/Atributos").get_child(4)
+	var lbl_agarre0: Label = fila_agarre0.get_child(0).get_child(1)
+	var slider_agarre0: HSlider = fila_agarre0.get_child(1)
+	var fila_vel1: Node = vista_083.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/Atributos").get_child(0)
+	var lbl_vel1: Label = fila_vel1.get_child(0).get_child(1)
+	var slider_vel1: HSlider = fila_vel1.get_child(1)
+	_assert_true(
+		is_equal_approx(slider_agarre0.value, 0.83) and lbl_agarre0.text == "0.83"
+		and is_equal_approx(slider_vel1.value, 0.83) and lbl_vel1.text == "0.83",
+		"Vista 3 preserva 0.83 en slider y etiqueta sin cuantizar a 0.85 al cargar"
+	)
+
+	vista_083._guardar_configuraciones()
+	_assert_true(
+		is_equal_approx(float(ds.config_vehiculos[0]["agarre"]), 0.83)
+		and is_equal_approx(float(ds.config_vehiculos[1]["velocidad_maxima"]), 0.83),
+		"Vista 3 _guardar_configuraciones() preserva valores finitos 0.83 intactos"
+	)
+
+	vp_083.queue_free()
+	await _esperar_frames(2)
+
+	# Corrupt color/nombre/nivel_ia load sanitization
+	ds.config_vehiculos = cfg_backup_c2.duplicate(true)
+	ds.config_vehiculos[0]["color"] = null
+	ds.config_vehiculos[1]["color"] = "rojo"
+	ds.config_vehiculos[0]["nombre"] = null
+	ds.config_vehiculos[0]["nivel_ia"] = "bad"
+	ds.config_vehiculos[1]["nivel_ia"] = null
+
+	var vp_corrupt := SubViewport.new()
+	vp_corrupt.size = Vector2i(1280, 720)
+	root.add_child(vp_corrupt)
+
+	var vista_corrupt := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_corrupt.add_child(vista_corrupt)
+	await _esperar_frames(3)
+
+	_assert_true(
+		ds.config_vehiculos[0]["color"] is Color
+		and (ds.config_vehiculos[0]["color"] as Color).is_equal_approx(Color.WHITE)
+		and ds.config_vehiculos[1]["color"] is Color
+		and (ds.config_vehiculos[1]["color"] as Color).is_equal_approx(Color.WHITE)
+		and ds.config_vehiculos[0]["nombre"] is String
+		and not str(ds.config_vehiculos[0]["nombre"]).is_empty()
+		and ds.config_vehiculos[0]["nivel_ia"] is int
+		and ds.config_vehiculos[0]["nivel_ia"] == 5
+		and ds.config_vehiculos[1]["nivel_ia"] is int
+		and ds.config_vehiculos[1]["nivel_ia"] == 5,
+		"Vista 3 sanea color/nombre/nivel_ia corruptos en DatosSimulacion inmediatamente al cargar"
+	)
+
+	vista_corrupt._guardar_configuraciones()
+	_assert_true(
+		ds.config_vehiculos[0]["nivel_ia"] is int and ds.config_vehiculos[0]["nivel_ia"] == 5
+		and ds.config_vehiculos[1]["nivel_ia"] is int and ds.config_vehiculos[1]["nivel_ia"] == 5,
+		"Vista 3 _guardar_configuraciones() mantiene nivel_ia saneado como int 5"
+	)
+
+	vp_corrupt.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_backup_c2
 
 
 func _test_e_layout_responsivo_sin_solapamientos(ds: Node) -> void:

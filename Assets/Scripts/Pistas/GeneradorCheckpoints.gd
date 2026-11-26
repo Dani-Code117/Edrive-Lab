@@ -296,7 +296,20 @@ static func _trazar_ciclo(eje: Dictionary, inicio: Vector2i) -> Array[Vector2i]:
 	var pasos_restantes := [maxi(eje.size() * 16, 512)]
 	if _dfs_ciclo(eje, inicio, inicio, ruta, visitadas, pasos_restantes):
 		return ruta
-	return []
+
+	# Fallback determinista O(|V|) para mallas con múltiples huecos donde el DFS agota pasos.
+	var min_largo_cps := maxi(MIN_CELDAS_CIRCUITO, PASO_CHECKPOINT * 3 + 1)
+	var ciclo_planar := _trazar_ciclo_planar(eje, inicio, min_largo_cps)
+	if ciclo_planar.size() >= min_largo_cps:
+		return ciclo_planar
+
+	var ciclo_bfs := _trazar_ciclo_bfs(eje, inicio, min_largo_cps)
+	if ciclo_bfs.size() >= min_largo_cps:
+		return ciclo_bfs
+
+	if not ciclo_planar.is_empty():
+		return ciclo_planar
+	return ciclo_bfs
 
 
 static func _dfs_ciclo(
@@ -337,6 +350,132 @@ static func _dfs_ciclo(
 		ruta.pop_back()
 
 	return false
+
+
+static func _arista_valida_eje(eje: Dictionary, a: Vector2i, b: Vector2i) -> bool:
+	if not eje.has(b):
+		return false
+	var d := b - a
+	if d == Vector2i.ZERO or absi(d.x) > 1 or absi(d.y) > 1:
+		return false
+	# Evitar atajos diagonales cuando existe una esquina ortogonal en el esqueleto
+	if d.x != 0 and d.y != 0:
+		if eje.has(Vector2i(a.x, b.y)) or eje.has(Vector2i(b.x, a.y)):
+			return false
+	return true
+
+
+static func _trazar_ciclo_planar(eje: Dictionary, inicio: Vector2i, min_largo: int) -> Array[Vector2i]:
+	var vecinos_ini: Array[Vector2i] = []
+	for dir in VECINOS_4:
+		var c := inicio + dir
+		if _arista_valida_eje(eje, inicio, c):
+			vecinos_ini.append(c)
+	for dir in VECINOS_8:
+		var c := inicio + dir
+		if _arista_valida_eje(eje, inicio, c) and not vecinos_ini.has(c):
+			vecinos_ini.append(c)
+
+	var mejor_corto: Array[Vector2i] = []
+	var max_pasos := eje.size() + 2
+	for nxt in vecinos_ini:
+		for sentido in [1, -1]:
+			var ruta: Array[Vector2i] = [inicio, nxt]
+			var visitadas: Dictionary = {inicio: true, nxt: true}
+			var prev := inicio
+			var curr := nxt
+			for _step in range(max_pasos):
+				if ruta.size() >= min_largo and _arista_valida_eje(eje, curr, inicio):
+					return ruta
+				var back_idx := VECINOS_8.find(prev - curr)
+				if back_idx == -1:
+					break
+				var elegido := Vector2i.ZERO
+				var encontro := false
+				for k in range(1, 8):
+					var dir := VECINOS_8[(back_idx + sentido * k + 8) % 8]
+					var cand := curr + dir
+					if not _arista_valida_eje(eje, curr, cand):
+						continue
+					if cand == inicio and ruta.size() >= min_largo:
+						return ruta
+					if not visitadas.has(cand):
+						elegido = cand
+						encontro = true
+						break
+				if not encontro:
+					break
+				prev = curr
+				curr = elegido
+				ruta.append(curr)
+				visitadas[curr] = true
+			if ruta.size() >= MIN_CELDAS_CIRCUITO and _arista_valida_eje(eje, curr, inicio):
+				if mejor_corto.is_empty():
+					mejor_corto = ruta
+	return mejor_corto
+
+
+static func _trazar_ciclo_bfs(eje: Dictionary, inicio: Vector2i, min_largo: int) -> Array[Vector2i]:
+	var vecinos_ini: Array[Vector2i] = []
+	for dir in VECINOS_4:
+		var c := inicio + dir
+		if _arista_valida_eje(eje, inicio, c):
+			vecinos_ini.append(c)
+	for dir in VECINOS_8:
+		var c := inicio + dir
+		if _arista_valida_eje(eje, inicio, c) and not vecinos_ini.has(c):
+			vecinos_ini.append(c)
+	if vecinos_ini.size() < 2:
+		return []
+
+	var es_vecino_ini: Dictionary = {}
+	for v in vecinos_ini:
+		es_vecino_ini[v] = true
+
+	var mejor_corto: Array[Vector2i] = []
+	for s in vecinos_ini:
+		var padre: Dictionary = {s: inicio}
+		var dist: Dictionary = {s: 1}
+		var cola: Array[Vector2i] = [s]
+		var idx := 0
+		while idx < cola.size():
+			var u := cola[idx]
+			idx += 1
+			var d: int = dist[u]
+			if u != s and es_vecino_ini.has(u) and d + 1 >= MIN_CELDAS_CIRCUITO:
+				var ciclo := _reconstruir_ciclo_bfs(padre, u, inicio)
+				if ciclo.size() >= min_largo:
+					return ciclo
+				if mejor_corto.is_empty():
+					mejor_corto = ciclo
+			for dir in VECINOS_4:
+				var v := u + dir
+				if v == inicio or not _arista_valida_eje(eje, u, v):
+					continue
+				if not dist.has(v):
+					dist[v] = d + 1
+					padre[v] = u
+					cola.append(v)
+			for dir in VECINOS_8:
+				var v := u + dir
+				if v == inicio or not _arista_valida_eje(eje, u, v):
+					continue
+				if not dist.has(v):
+					dist[v] = d + 1
+					padre[v] = u
+					cola.append(v)
+	return mejor_corto
+
+
+static func _reconstruir_ciclo_bfs(padre: Dictionary, fin: Vector2i, inicio: Vector2i) -> Array[Vector2i]:
+	var rev: Array[Vector2i] = []
+	var cur := fin
+	while cur != inicio and padre.has(cur):
+		rev.append(cur)
+		cur = padre[cur]
+	rev.append(inicio)
+	rev.reverse()
+	return rev
 
 
 static func _asegurar_sentido_horario(ciclo: Array[Vector2i]) -> Array[Vector2i]:

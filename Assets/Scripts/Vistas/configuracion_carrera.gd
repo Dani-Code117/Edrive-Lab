@@ -190,7 +190,15 @@ func _on_minimapa_draw() -> void:
 
 func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Texture2D) -> void:
 	var cfg: Dictionary = DatosSimulacion.config_vehiculos[indice]
-	var color_coche: Color = cfg["color"]
+	var raw_color: Variant = cfg.get("color", Color.WHITE)
+	var color_coche: Color = raw_color if raw_color is Color else Color.WHITE
+	if not (raw_color is Color):
+		DatosSimulacion.config_vehiculos[indice]["color"] = color_coche
+
+	var raw_nombre: Variant = cfg.get("nombre", "")
+	var nombre_coche: String = str(raw_nombre) if raw_nombre != null and not str(raw_nombre).is_empty() else "Vehículo %d" % (indice + 1)
+	if raw_nombre == null or not (raw_nombre is String) or str(raw_nombre).is_empty():
+		DatosSimulacion.config_vehiculos[indice]["nombre"] = nombre_coche
 
 	var franja: ColorRect = tarjeta.get_node("VBox/FranjaColor")
 	var lbl_nombre: Label = tarjeta.get_node("VBox/Margin/Cuerpo/Header/LblNombre")
@@ -201,7 +209,7 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 	var lbl_desc_ia: Label = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionIA/LblDescIA")
 
 	franja.color = color_coche
-	lbl_nombre.text = cfg["nombre"]
+	lbl_nombre.text = nombre_coche
 	lbl_nombre.add_theme_color_override("font_color", color_coche.lightened(0.25))
 
 	preview_coche.texture = textura_coche
@@ -242,8 +250,9 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		var slider := HSlider.new()
 		slider.min_value = 0.0
 		slider.max_value = 1.0
-		slider.step = 0.05
+		slider.step = 0.01
 		slider.value = valor_inicial
+		lbl_val.text = "%.2f" % slider.value
 		slider.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		slider.value_changed.connect(func(v: float):
 			DatosSimulacion.config_vehiculos[indice][clave] = v
@@ -263,7 +272,10 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		var texto := "Nivel %d — %s" % [info_ia["nivel"], info_ia["titulo"]]
 		opt_ia.add_item(texto, info_ia["nivel"])
 
-	var nivel_actual: int = _sanitizar_nivel_ia(cfg.get("nivel_ia", 5), 5)
+	var raw_nivel: Variant = cfg.get("nivel_ia", 5)
+	var nivel_actual: int = _sanitizar_nivel_ia(raw_nivel, 5)
+	if not (raw_nivel is int) or int(raw_nivel) != nivel_actual:
+		DatosSimulacion.config_vehiculos[indice]["nivel_ia"] = nivel_actual
 	opt_ia.select(nivel_actual - 1)
 	_actualizar_estado_ia(nivel_actual, lbl_desc_ia, lbl_estado_ia)
 
