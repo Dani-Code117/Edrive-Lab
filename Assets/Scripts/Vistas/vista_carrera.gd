@@ -10,6 +10,8 @@ const ESCENA_VEHICULO := "res://Assets/Escenas/Componentes/vehiculo_agente.tscn"
 const ESCENA_CHECKPOINT := "res://Assets/Escenas/Componentes/checkpoint.tscn"
 const RUTA_BANDERA_META := "res://Assets/Sprites/bandera_meta.png"
 const RUTA_SPRITE_COCHE := "res://Assets/Sprites/coche_base.png"
+const FACTOR_ZOOM_INSPECCION: float = 3.0
+const VEL_SUAVIZADO_CAMARA: float = 10.0
 
 @onready var btn_vel_1x: Button = $Layout/BarraSuperior/Margin/HBox/ControlesVelocidad/BtnVel1x
 @onready var btn_vel_2x: Button = $Layout/BarraSuperior/Margin/HBox/ControlesVelocidad/BtnVel2x
@@ -47,8 +49,10 @@ var _usando_circuito_fallback: bool = false
 var _vehiculos: Array[VehiculoAgente] = []
 var _checkpoints: Array[CheckpointArea] = []
 var _tarjetas_ui: Array[Dictionary] = []
-var _indice_inspeccionado: int = 0
+var _indice_inspeccionado: int = -1
 var _mostrar_sensores_activo: bool = true
+var _cam_pos_completa: Vector2 = Vector2.ZERO
+var _cam_zoom_completo: float = 1.0
 var _estilo_tarjeta_normal: StyleBoxFlat = null
 var _estilo_tarjeta_activa: StyleBoxFlat = null
 
@@ -80,7 +84,7 @@ func _ready() -> void:
 	_configurar_meta_visual()
 	_instanciar_vehiculos()
 	_configurar_tarjetas_hud()
-	_seleccionar_vehiculo_inspeccion(0)
+	_seleccionar_vehiculo_inspeccion(-1)
 	_establecer_velocidad(1.0)
 	_actualizar_boton_rayos()
 
@@ -92,8 +96,9 @@ func _exit_tree() -> void:
 	Engine.time_scale = 1.0
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_actualizar_telemetria_hud()
+	_actualizar_camara(delta)
 
 
 func obtener_vehiculos() -> Array[VehiculoAgente]:
@@ -334,7 +339,7 @@ func _configurar_tarjetas_hud() -> void:
 		var idx_local := i
 		for con in btn_insp.pressed.get_connections():
 			btn_insp.pressed.disconnect(con["callable"])
-		btn_insp.pressed.connect(func(): _seleccionar_vehiculo_inspeccion(idx_local))
+		btn_insp.pressed.connect(func(): _alternar_inspeccion(idx_local))
 
 		_tarjetas_ui.append({
 			"panel": tarjeta,
@@ -354,19 +359,26 @@ func _obtener_titulo_nivel(nivel: int) -> String:
 	return "IA"
 
 
+func _alternar_inspeccion(indice: int) -> void:
+	if indice == _indice_inspeccionado:
+		_seleccionar_vehiculo_inspeccion(-1)
+	else:
+		_seleccionar_vehiculo_inspeccion(indice)
+
+
 func _seleccionar_vehiculo_inspeccion(indice: int) -> void:
-	if _vehiculos.is_empty():
+	if _vehiculos.is_empty() or indice < 0 or indice >= _vehiculos.size():
 		_indice_inspeccionado = -1
 		if visor_red != null:
 			visor_red.establecer_vehiculo(null)
-		return
-
-	_indice_inspeccionado = clampi(indice, 0, _vehiculos.size() - 1)
-	var coche_sel := _vehiculos[_indice_inspeccionado]
-	if coche_sel == null or not is_instance_valid(coche_sel):
-		coche_sel = null
-	if visor_red != null:
-		visor_red.establecer_vehiculo(coche_sel)
+	else:
+		_indice_inspeccionado = indice
+		var coche_sel := _vehiculos[_indice_inspeccionado]
+		if coche_sel == null or not is_instance_valid(coche_sel):
+			coche_sel = null
+			_indice_inspeccionado = -1
+		if visor_red != null:
+			visor_red.establecer_vehiculo(coche_sel)
 
 	for i in range(_tarjetas_ui.size()):
 		var ui: Dictionary = _tarjetas_ui[i]
@@ -487,7 +499,31 @@ func _ajustar_escenario() -> void:
 	if escala <= 0.01:
 		return
 
-	if camara_pista != null:
-		camara_pista.enabled = true
-		camara_pista.position = Vector2(ancho_mapa * 0.5, alto_mapa * 0.5)
-		camara_pista.zoom = Vector2(escala, escala)
+	_cam_pos_completa = Vector2(ancho_mapa * 0.5, alto_mapa * 0.5)
+	_cam_zoom_completo = escala
+	_actualizar_camara(0.0, true)
+
+
+func _actualizar_camara(delta: float, inmediato: bool = false) -> void:
+	if camara_pista == null:
+		return
+	camara_pista.enabled = true
+
+	var objetivo_pos := _cam_pos_completa
+	var objetivo_zoom := Vector2(_cam_zoom_completo, _cam_zoom_completo)
+
+	if _indice_inspeccionado >= 0:
+		if _indice_inspeccionado < _vehiculos.size() and is_instance_valid(_vehiculos[_indice_inspeccionado]):
+			objetivo_pos = _vehiculos[_indice_inspeccionado].position
+			var zoom_insp := _cam_zoom_completo * FACTOR_ZOOM_INSPECCION
+			objetivo_zoom = Vector2(zoom_insp, zoom_insp)
+		else:
+			_seleccionar_vehiculo_inspeccion(-1)
+
+	if inmediato:
+		camara_pista.position = objetivo_pos
+		camara_pista.zoom = objetivo_zoom
+	else:
+		var t := clampf(delta * VEL_SUAVIZADO_CAMARA, 0.0, 1.0)
+		camara_pista.position = camara_pista.position.lerp(objetivo_pos, t)
+		camara_pista.zoom = camara_pista.zoom.lerp(objetivo_zoom, t)

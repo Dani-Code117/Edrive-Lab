@@ -325,18 +325,30 @@ func _test_d_simulacion_telemetria_y_controles(ds: Node) -> void:
 		"Vehiculos avanzan en simulacion en vivo y actualizan instantaneas de RedNeuronal"
 	)
 
-	# Cambio de inspeccion (0 -> 1 -> 2)
+	# Cambio de inspeccion (-1 inicial -> 1 -> 2 -> -1 toggle + zoom camara)
 	var cont_tarjetas: VBoxContainer = vista.get("contenedor_tarjetas")
 	var visor_red: Control = vista.get("visor_red")
+	var cam_vista: Camera2D = vista.get("camara_pista")
+	var zoom_pista: float = cam_vista.zoom.x
+	var ok_inicio_sin_insp: bool = int(vista.call("obtener_indice_inspeccionado")) == -1 and visor_red.get("vehiculo_objetivo") == null
 	var btn_insp1: Button = cont_tarjetas.get_child(1).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
 	var btn_insp2: Button = cont_tarjetas.get_child(2).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
 	btn_insp1.pressed.emit()
-	await _esperar_frames(2)
-	var ok_insp1: bool = visor_red.get("vehiculo_objetivo") == coches[1] and int(vista.call("obtener_indice_inspeccionado")) == 1
+	for _f in range(90):
+		await _esperar_frames(1)
+		if cam_vista.zoom.x > zoom_pista * 1.5:
+			break
+	var ok_insp1: bool = visor_red.get("vehiculo_objetivo") == coches[1] and int(vista.call("obtener_indice_inspeccionado")) == 1 and cam_vista.zoom.x > zoom_pista * 1.5
 	btn_insp2.pressed.emit()
-	await _esperar_frames(2)
+	await _esperar_frames(5)
 	var ok_insp2: bool = visor_red.get("vehiculo_objetivo") == coches[2] and int(vista.call("obtener_indice_inspeccionado")) == 2
-	_assert_true(ok_insp1 and ok_insp2, "Botones Inspeccionar cambian el vehiculo objetivo del VisorRedNeuronal")
+	btn_insp2.pressed.emit()
+	for _f in range(120):
+		await _esperar_frames(1)
+		if cam_vista.zoom.x < zoom_pista * 1.2:
+			break
+	var ok_insp_off: bool = int(vista.call("obtener_indice_inspeccionado")) == -1 and visor_red.get("vehiculo_objetivo") == null and cam_vista.zoom.x < zoom_pista * 1.2
+	_assert_true(ok_inicio_sin_insp and ok_insp1 and ok_insp2 and ok_insp_off, "Botones Inspeccionar inician sin seleccion, hacen zoom al coche, cambian entre coches y regresan a pista completa")
 
 	# Toggle de rayos
 	var btn_rayos: Button = vista.get("btn_rayos")
