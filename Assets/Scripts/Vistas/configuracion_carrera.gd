@@ -22,9 +22,13 @@ const ATRIBUTOS_FISICOS: Array[Dictionary] = [
 @onready var contenedor_tarjetas: HBoxContainer = $Layout/Contenido/ScrollArea/CuerpoPrincipal/Tarjetas
 
 var _controles_tarjetas: Array[Dictionary] = []
+var _aplicando_arquetipo: Array[bool] = []
+var _actualizando_ui: Array[bool] = []
+var _click_humano_en_curso: Array[bool] = []
 
 
 func _ready() -> void:
+	DatosSimulacion.sanitizar_config_vehiculos()
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_iniciar.pressed.connect(_on_iniciar_pressed)
 	lienzo_minimapa.draw.connect(_on_minimapa_draw)
@@ -32,11 +36,18 @@ func _ready() -> void:
 
 	var textura_coche := _obtener_textura_coche()
 	var tarjetas := contenedor_tarjetas.get_children()
+	var cant := mini(tarjetas.size(), DatosSimulacion.config_vehiculos.size())
 	_controles_tarjetas.clear()
-
-	for i in range(mini(tarjetas.size(), DatosSimulacion.config_vehiculos.size())):
+	_aplicando_arquetipo.resize(cant)
+	_actualizando_ui.resize(cant)
+	_click_humano_en_curso.resize(cant)
+	for i in range(cant):
+		_aplicando_arquetipo[i] = false
+		_actualizando_ui[i] = false
+		_click_humano_en_curso[i] = false
 		_configurar_tarjeta(tarjetas[i], i, textura_coche)
 
+	_refrescar_modos_tarjetas()
 	actualizar_minimapa()
 
 
@@ -204,7 +215,16 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 	var franja: ColorRect = tarjeta.get_node("VBox/FranjaColor")
 	var lbl_nombre: Label = tarjeta.get_node("VBox/Margin/Cuerpo/Header/LblNombre")
 	var preview_coche: TextureRect = tarjeta.get_node("VBox/Margin/Cuerpo/VistaPrevia/Centro/SpriteCoche")
+	var lbl_arquetipo: Label = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var btns_arquetipo: Dictionary = {
+		"Equilibrado": tarjeta.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqEquilibrado"),
+		"Velocista": tarjeta.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqVelocista"),
+		"Drift": tarjeta.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqDrift"),
+		"Técnico": tarjeta.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqTecnico"),
+	}
 	var box_atributos: VBoxContainer = tarjeta.get_node("VBox/Margin/Cuerpo/Atributos")
+	var btn_modo_ia: Button = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoIA")
+	var btn_modo_humano: Button = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoHumano")
 	var opt_ia: OptionButton = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
 	var lbl_estado_ia: Label = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionIA/LblEstadoIA")
 	var lbl_desc_ia: Label = tarjeta.get_node("VBox/Margin/Cuerpo/SeccionIA/LblDescIA")
@@ -232,17 +252,17 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 			DatosSimulacion.config_vehiculos[indice][clave] = valor_inicial
 
 		var fila := VBoxContainer.new()
-		fila.add_theme_constant_override("separation", 2)
+		fila.add_theme_constant_override("separation", 0)
 
 		var encabezado := HBoxContainer.new()
 		var lbl_atr := Label.new()
 		lbl_atr.text = etiqueta
 		lbl_atr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lbl_atr.add_theme_font_size_override("font_size", 14)
+		lbl_atr.add_theme_font_size_override("font_size", 13)
 
 		var lbl_val := Label.new()
 		lbl_val.text = "%.2f" % valor_inicial
-		lbl_val.add_theme_font_size_override("font_size", 14)
+		lbl_val.add_theme_font_size_override("font_size", 13)
 		lbl_val.add_theme_color_override("font_color", color_coche.lightened(0.35))
 
 		encabezado.add_child(lbl_atr)
@@ -258,6 +278,8 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		slider.value_changed.connect(func(v: float):
 			DatosSimulacion.config_vehiculos[indice][clave] = v
 			lbl_val.text = "%.2f" % v
+			if not _aplicando_arquetipo[indice]:
+				_marcar_arquetipo_personalizado(indice)
 		)
 
 		fila.add_child(encabezado)
@@ -267,7 +289,29 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 		sliders_tarjeta[clave] = slider
 		lbl_valores_tarjeta[clave] = lbl_val
 
-	# 6to atributo: Nivel de Inteligencia Artificial (1 a 10)
+	# Botones de arquetipo físico (2x2)
+	var arquetipo_inicial := DatosSimulacion.sanitizar_arquetipo(
+		cfg.get("arquetipo", DatosSimulacion.ARQUETIPO_PERSONALIZADO)
+	)
+	DatosSimulacion.config_vehiculos[indice]["arquetipo"] = arquetipo_inicial
+	lbl_arquetipo.text = arquetipo_inicial
+
+	for nombre_arq: String in btns_arquetipo.keys():
+		var btn_arq: Button = btns_arquetipo[nombre_arq]
+		btn_arq.set_pressed_no_signal(nombre_arq == arquetipo_inicial)
+		btn_arq.pressed.connect(func():
+			aplicar_arquetipo(indice, nombre_arq)
+		)
+		btn_arq.toggled.connect(func(presionado: bool):
+			if _aplicando_arquetipo[indice]:
+				return
+			if presionado:
+				aplicar_arquetipo(indice, nombre_arq)
+			elif str(DatosSimulacion.config_vehiculos[indice].get("arquetipo", "")) == nombre_arq:
+				btn_arq.set_pressed_no_signal(true)
+		)
+
+	# 6to atributo: Nivel de Inteligencia Artificial (1 a 10) + Selector IA / Piloto Humano
 	opt_ia.clear()
 	for info_ia in DatosSimulacion.NIVELES_IA:
 		var texto := "Nivel %d — %s" % [info_ia["nivel"], info_ia["titulo"]]
@@ -283,16 +327,152 @@ func _configurar_tarjeta(tarjeta: PanelContainer, indice: int, textura_coche: Te
 	opt_ia.item_selected.connect(func(idx: int):
 		var nivel := opt_ia.get_item_id(idx)
 		DatosSimulacion.config_vehiculos[indice]["nivel_ia"] = nivel
-		_actualizar_estado_ia(nivel, lbl_desc_ia, lbl_estado_ia)
+		if not DatosSimulacion.sanitizar_es_humano(DatosSimulacion.config_vehiculos[indice].get("es_humano", false)):
+			_actualizar_estado_ia(nivel, lbl_desc_ia, lbl_estado_ia)
+	)
+
+	btn_modo_ia.pressed.connect(func():
+		if DatosSimulacion.sanitizar_es_humano(DatosSimulacion.config_vehiculos[indice].get("es_humano", false)):
+			establecer_modo_humano(indice, false)
+		elif not btn_modo_ia.button_pressed:
+			btn_modo_ia.set_pressed_no_signal(true)
+	)
+	btn_modo_ia.toggled.connect(func(presionado: bool):
+		if _actualizando_ui[indice]:
+			return
+		if presionado:
+			establecer_modo_humano(indice, false)
+		elif not DatosSimulacion.sanitizar_es_humano(DatosSimulacion.config_vehiculos[indice].get("es_humano", false)):
+			btn_modo_ia.set_pressed_no_signal(true)
+	)
+
+	btn_modo_humano.button_down.connect(func():
+		_click_humano_en_curso[indice] = true
+	)
+	btn_modo_humano.button_up.connect(func():
+		_click_humano_en_curso[indice] = false
+	)
+	btn_modo_humano.pressed.connect(func():
+		if not DatosSimulacion.sanitizar_es_humano(DatosSimulacion.config_vehiculos[indice].get("es_humano", false)):
+			establecer_modo_humano(indice, true)
+		elif not btn_modo_humano.button_pressed:
+			btn_modo_humano.set_pressed_no_signal(true)
+	)
+	btn_modo_humano.toggled.connect(func(presionado: bool):
+		if _actualizando_ui[indice]:
+			return
+		if presionado:
+			establecer_modo_humano(indice, true)
+		elif _click_humano_en_curso[indice] and DatosSimulacion.sanitizar_es_humano(DatosSimulacion.config_vehiculos[indice].get("es_humano", false)):
+			btn_modo_humano.set_pressed_no_signal(true)
+		else:
+			establecer_modo_humano(indice, false)
 	)
 
 	_controles_tarjetas.append({
 		"sliders": sliders_tarjeta,
 		"lbl_valores": lbl_valores_tarjeta,
+		"lbl_arquetipo": lbl_arquetipo,
+		"btns_arquetipo": btns_arquetipo,
+		"btn_modo_ia": btn_modo_ia,
+		"btn_modo_humano": btn_modo_humano,
 		"opt_ia": opt_ia,
 		"lbl_estado_ia": lbl_estado_ia,
 		"lbl_desc_ia": lbl_desc_ia,
 	})
+
+
+func aplicar_arquetipo(indice: int, nombre_arquetipo: String) -> void:
+	if indice < 0 or indice >= _controles_tarjetas.size() or indice >= DatosSimulacion.config_vehiculos.size():
+		return
+
+	var clave_arq := DatosSimulacion.sanitizar_arquetipo(nombre_arquetipo)
+	if clave_arq == DatosSimulacion.ARQUETIPO_PERSONALIZADO or not DatosSimulacion.ARQUETIPOS_VEHICULO.has(clave_arq):
+		_marcar_arquetipo_personalizado(indice)
+		return
+
+	var ctrl: Dictionary = _controles_tarjetas[indice]
+	var sliders: Dictionary = ctrl["sliders"]
+	var lbl_valores: Dictionary = ctrl["lbl_valores"]
+	var lbl_arquetipo: Label = ctrl["lbl_arquetipo"]
+	var btns_arquetipo: Dictionary = ctrl["btns_arquetipo"]
+	var perfil: Dictionary = DatosSimulacion.ARQUETIPOS_VEHICULO[clave_arq]
+
+	_aplicando_arquetipo[indice] = true
+	for atr in ATRIBUTOS_FISICOS:
+		var clave: String = atr["clave"]
+		var valor := DatosSimulacion.sanitizar_normalizado(perfil.get(clave, 0.5), 0.5)
+		DatosSimulacion.config_vehiculos[indice][clave] = valor
+		if sliders.has(clave):
+			var slider: HSlider = sliders[clave]
+			slider.set_value_no_signal(valor)
+		if lbl_valores.has(clave):
+			var lbl_val: Label = lbl_valores[clave]
+			lbl_val.text = "%.2f" % valor
+
+	DatosSimulacion.config_vehiculos[indice]["arquetipo"] = clave_arq
+	lbl_arquetipo.text = clave_arq
+	for nombre_btn: String in btns_arquetipo.keys():
+		var btn: Button = btns_arquetipo[nombre_btn]
+		btn.set_pressed_no_signal(nombre_btn == clave_arq)
+	_aplicando_arquetipo[indice] = false
+
+
+func _marcar_arquetipo_personalizado(indice: int) -> void:
+	if indice < 0 or indice >= _controles_tarjetas.size() or indice >= DatosSimulacion.config_vehiculos.size():
+		return
+	var ctrl: Dictionary = _controles_tarjetas[indice]
+	var lbl_arquetipo: Label = ctrl["lbl_arquetipo"]
+	var btns_arquetipo: Dictionary = ctrl["btns_arquetipo"]
+
+	DatosSimulacion.config_vehiculos[indice]["arquetipo"] = DatosSimulacion.ARQUETIPO_PERSONALIZADO
+	lbl_arquetipo.text = DatosSimulacion.ARQUETIPO_PERSONALIZADO
+	_aplicando_arquetipo[indice] = true
+	for nombre_btn: String in btns_arquetipo.keys():
+		var btn: Button = btns_arquetipo[nombre_btn]
+		btn.set_pressed_no_signal(false)
+	_aplicando_arquetipo[indice] = false
+
+
+func establecer_modo_humano(indice: int, activar: bool) -> void:
+	if indice < 0 or indice >= _controles_tarjetas.size():
+		return
+	DatosSimulacion.establecer_humano_exclusivo(indice, activar)
+	_refrescar_modos_tarjetas()
+
+
+func _refrescar_modos_tarjetas() -> void:
+	for i in range(mini(_controles_tarjetas.size(), DatosSimulacion.config_vehiculos.size())):
+		_actualizando_ui[i] = true
+		var ctrl: Dictionary = _controles_tarjetas[i]
+		var es_hum: bool = DatosSimulacion.sanitizar_es_humano(
+			DatosSimulacion.config_vehiculos[i].get("es_humano", false)
+		)
+		var btn_ia: Button = ctrl["btn_modo_ia"]
+		var btn_hum: Button = ctrl["btn_modo_humano"]
+		var opt_ia: OptionButton = ctrl["opt_ia"]
+		var lbl_estado_ia: Label = ctrl["lbl_estado_ia"]
+		var lbl_desc_ia: Label = ctrl["lbl_desc_ia"]
+
+		btn_ia.set_pressed_no_signal(not es_hum)
+		btn_hum.set_pressed_no_signal(es_hum)
+		opt_ia.disabled = es_hum
+
+		if es_hum:
+			_actualizar_estado_humano(lbl_desc_ia, lbl_estado_ia)
+		else:
+			var nivel := DatosSimulacion.sanitizar_nivel_ia(
+				DatosSimulacion.config_vehiculos[i].get("nivel_ia", 5),
+				5
+			)
+			_actualizar_estado_ia(nivel, lbl_desc_ia, lbl_estado_ia)
+		_actualizando_ui[i] = false
+
+
+func _actualizar_estado_humano(lbl_desc_ia: Label, lbl_estado_ia: Label) -> void:
+	lbl_estado_ia.text = "Piloto Humano activo"
+	lbl_estado_ia.add_theme_color_override("font_color", Color(0.0, 0.898, 1.0, 1.0))
+	lbl_desc_ia.text = "Control manual con WASD o Flechas (acelerar, frenar, reversa y giro)."
 
 
 func _actualizar_estado_ia(nivel: int, lbl_desc_ia: Label, lbl_estado_ia: Label) -> void:
@@ -327,29 +507,23 @@ func _guardar_configuraciones() -> void:
 		if opt_ia.selected >= 0:
 			var nivel := _sanitizar_nivel_ia(opt_ia.get_item_id(opt_ia.selected), 5)
 			DatosSimulacion.config_vehiculos[i]["nivel_ia"] = nivel
-			_actualizar_estado_ia(nivel, ctrl["lbl_desc_ia"], ctrl["lbl_estado_ia"])
+
+		var lbl_arquetipo: Label = ctrl["lbl_arquetipo"]
+		DatosSimulacion.config_vehiculos[i]["arquetipo"] = DatosSimulacion.sanitizar_arquetipo(lbl_arquetipo.text)
+
+		var btn_hum: Button = ctrl["btn_modo_humano"]
+		DatosSimulacion.config_vehiculos[i]["es_humano"] = btn_hum.button_pressed
+
+	DatosSimulacion.sanitizar_config_vehiculos()
+	_refrescar_modos_tarjetas()
 
 
 static func _sanitizar_normalizado(valor: Variant, defecto: float = 0.5) -> float:
-	var num := defecto
-	if valor is float or valor is int:
-		num = float(valor)
-	elif valor is String and (valor as String).is_valid_float():
-		num = float(valor)
-	if not is_finite(num):
-		num = defecto
-	return clampf(num, 0.0, 1.0)
+	return DatosSimulacion.sanitizar_normalizado(valor, defecto)
 
 
 static func _sanitizar_nivel_ia(valor: Variant, defecto: int = 5) -> int:
-	var num := float(defecto)
-	if valor is float or valor is int:
-		num = float(valor)
-	elif valor is String and (valor as String).is_valid_float():
-		num = float(valor)
-	if not is_finite(num):
-		num = float(defecto)
-	return clampi(int(roundf(num)), 1, 10)
+	return DatosSimulacion.sanitizar_nivel_ia(valor, defecto)
 
 
 func _obtener_textura_coche() -> Texture2D:

@@ -72,6 +72,8 @@ func _run_all() -> void:
 	await _test_c_tarjetas_sliders_e_ia(ds)
 	await _test_d_persistencia_botones_y_presets(ds)
 	await _test_e_layout_responsivo_sin_solapamientos(ds)
+	await _test_f_arquetipos_vehiculo(ds)
+	await _test_g_modo_piloto_humano_y_exclusividad(ds)
 
 	# Restaurar estado limpio de DatosSimulacion
 	ds.limpiar_pista()
@@ -721,25 +723,54 @@ func _test_e_layout_responsivo_sin_solapamientos(ds: Node) -> void:
 		vp.add_child(vista)
 		await _esperar_frames(4)
 
-		for estado_aviso in [false, true]:
-			if estado_aviso:
-				vista.lbl_aviso.text = "Configuración guardada para los 3 vehículos. La Vista 4 (Carrera / Simulación) es el siguiente módulo."
-				vista.lbl_aviso.visible = true
-				await _esperar_frames(3)
+		for escenario: Dictionary in [
+			{"aviso": false, "humano": false, "etiqueta": "aviso=false, modo=IA"},
+			{"aviso": true, "humano": false, "etiqueta": "aviso=true, modo=IA"},
+			{"aviso": true, "humano": true, "etiqueta": "aviso=true, modo=mixto_humano"},
+		]:
+			vista.lbl_aviso.text = "Configuración guardada para los 3 vehículos. La Vista 4 (Carrera / Simulación) es el siguiente módulo."
+			vista.lbl_aviso.visible = bool(escenario["aviso"])
+			vista.establecer_modo_humano(0, bool(escenario["humano"]))
+			await _esperar_frames(3)
 
 			var problemas := _validar_geometria_vista(vista, res)
+			var errores_botones := _validar_texto_botones_tarjetas(vista.contenedor_tarjetas)
+			problemas.append_array(errores_botones)
 			var scroll: ScrollContainer = vista.get_node("Layout/Contenido/ScrollArea")
 			var vbar := scroll.get_v_scroll_bar()
 			var sin_scroll := vbar.max_value <= scroll.size.y + 1.5
 			_assert_true(
 				problemas.is_empty() and sin_scroll,
-				"Layout %dx%d (aviso=%s) sin recortes, sin solapamientos y sin overflow (vbar max=%.1f <= %.1f; errs=%s)" % [
-					res.x, res.y, str(estado_aviso), vbar.max_value, scroll.size.y, str(problemas)
+				"Layout %dx%d (%s) sin recortes, sin solapamientos y sin overflow (vbar max=%.1f <= %.1f; errs=%s)" % [
+					res.x, res.y, str(escenario["etiqueta"]), vbar.max_value, scroll.size.y, str(problemas)
 				]
 			)
 
+		ds.establecer_humano_exclusivo(0, false)
 		vp.queue_free()
 		await _esperar_frames(2)
+
+
+func _validar_texto_botones_tarjetas(tarjetas: Control) -> Array[String]:
+	var errores: Array[String] = []
+	for nodo in _obtener_todos_nodos(tarjetas):
+		if not (nodo is Button) or (nodo is OptionButton):
+			continue
+		var btn := nodo as Button
+		if not btn.is_visible_in_tree():
+			continue
+		if btn.clip_text:
+			errores.append("Boton con clip_text=true: %s" % btn.name)
+		var min_sz := btn.get_minimum_size()
+		if btn.size.x + 0.5 < min_sz.x or btn.size.y + 0.5 < min_sz.y:
+			errores.append("Boton %s menor que min_size (%s < %s)" % [btn.name, str(btn.size), str(min_sz)])
+		var font := btn.get_theme_font("font")
+		var fsize := btn.get_theme_font_size("font_size")
+		if font != null:
+			var text_w := font.get_string_size(btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+			if text_w > btn.size.x - 4.0:
+				errores.append("Texto recortado en %s (%.1f > %.1f)" % [btn.name, text_w, btn.size.x])
+	return errores
 
 
 func _validar_geometria_vista(raiz: Control, res: Vector2i) -> Array[String]:
@@ -787,3 +818,519 @@ func _obtener_todos_nodos(raiz: Node) -> Array[Node]:
 	for ch in raiz.get_children():
 		res.append_array(_obtener_todos_nodos(ch))
 	return res
+
+
+func _test_f_arquetipos_vehiculo(ds: Node) -> void:
+	print("--- Test (f): Arquetipos de vehiculo (Equilibrado, Velocista, Drift, Tecnico y Personalizado) ---")
+	var cfg_backup: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.restaurar_config_vehiculos_defecto()
+
+	var esquema_ok: bool = ds.config_vehiculos.size() == 3
+	for cfg: Dictionary in ds.config_vehiculos:
+		if cfg.get("arquetipo", "") != "Personalizado" or cfg.get("es_humano", true) != false:
+			esquema_ok = false
+	_assert_true(esquema_ok, "restaurar_config_vehiculos_defecto() inicializa arquetipo='Personalizado' y es_humano=false")
+
+	var perfiles_esperados: Dictionary = {
+		"Equilibrado": {"velocidad_maxima": 0.50, "aceleracion": 0.50, "frenado": 0.50, "control": 0.50, "agarre": 0.50},
+		"Velocista": {"velocidad_maxima": 0.95, "aceleracion": 0.85, "frenado": 0.55, "control": 0.40, "agarre": 0.40},
+		"Drift": {"velocidad_maxima": 0.75, "aceleracion": 0.85, "frenado": 0.55, "control": 0.85, "agarre": 0.25},
+		"Técnico": {"velocidad_maxima": 0.60, "aceleracion": 0.70, "frenado": 0.90, "control": 0.90, "agarre": 0.90},
+	}
+
+	# Validar relaciones de perfil físico
+	_assert_true(
+		float(perfiles_esperados["Velocista"]["velocidad_maxima"]) > float(perfiles_esperados["Técnico"]["velocidad_maxima"])
+		and float(perfiles_esperados["Velocista"]["aceleracion"]) > float(perfiles_esperados["Equilibrado"]["aceleracion"])
+		and float(perfiles_esperados["Velocista"]["control"]) < float(perfiles_esperados["Técnico"]["control"])
+		and float(perfiles_esperados["Velocista"]["agarre"]) < float(perfiles_esperados["Técnico"]["agarre"])
+		and float(perfiles_esperados["Drift"]["agarre"]) < float(perfiles_esperados["Velocista"]["agarre"])
+		and float(perfiles_esperados["Velocista"]["agarre"]) < float(perfiles_esperados["Equilibrado"]["agarre"])
+		and float(perfiles_esperados["Equilibrado"]["agarre"]) < float(perfiles_esperados["Técnico"]["agarre"])
+		and float(perfiles_esperados["Técnico"]["frenado"]) > float(perfiles_esperados["Drift"]["frenado"])
+		and float(perfiles_esperados["Técnico"]["control"]) >= float(perfiles_esperados["Drift"]["control"]),
+		"Perfiles Equilibrado/Velocista/Drift/Tecnico mantienen invariantes fisicas coherentes"
+	)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1440, 900)
+	root.add_child(vp)
+
+	var vista := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp.add_child(vista)
+	await _esperar_frames(3)
+
+	var card0: Node = vista.contenedor_tarjetas.get_child(0)
+	var card1: Node = vista.contenedor_tarjetas.get_child(1)
+	var card2: Node = vista.contenedor_tarjetas.get_child(2)
+
+	var lbl_arq0: Label = card0.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var btns0: Dictionary = {
+		"Equilibrado": card0.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqEquilibrado") as Button,
+		"Velocista": card0.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqVelocista") as Button,
+		"Drift": card0.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqDrift") as Button,
+		"Técnico": card0.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqTecnico") as Button,
+	}
+	var box_atr0: VBoxContainer = card0.get_node("VBox/Margin/Cuerpo/Atributos")
+	var claves := ["velocidad_maxima", "aceleracion", "frenado", "control", "agarre"]
+
+	var vel_card1_inicial: float = float(ds.config_vehiculos[1]["velocidad_maxima"])
+	var arq_card2_inicial: String = str(ds.config_vehiculos[2]["arquetipo"])
+
+	# Probar cada arquetipo por botón (.pressed.emit y .button_pressed = true) y método público
+	var presets_ui_ok := true
+	for nombre_arq: String in ["Equilibrado", "Velocista", "Drift", "Técnico"]:
+		var btn_target: Button = btns0[nombre_arq]
+		if nombre_arq == "Velocista":
+			btn_target.button_pressed = true # Emite toggled(true)
+		elif nombre_arq == "Técnico":
+			vista.aplicar_arquetipo(0, nombre_arq)
+		else:
+			btn_target.pressed.emit()
+		await _esperar_frames(1)
+
+		var perfil: Dictionary = perfiles_esperados[nombre_arq]
+		if lbl_arq0.text != nombre_arq or ds.config_vehiculos[0]["arquetipo"] != nombre_arq:
+			presets_ui_ok = false
+		for k_btn: String in btns0.keys():
+			if (btns0[k_btn] as Button).button_pressed != (k_btn == nombre_arq):
+				presets_ui_ok = false
+		for s_idx in range(5):
+			var clave: String = claves[s_idx]
+			var fila := box_atr0.get_child(s_idx)
+			var lbl_val: Label = fila.get_child(0).get_child(1)
+			var slider: HSlider = fila.get_child(1)
+			var esperado := float(perfil[clave])
+			if not is_equal_approx(slider.value, esperado) or lbl_val.text != ("%.2f" % esperado) or not is_equal_approx(float(ds.config_vehiculos[0][clave]), esperado):
+				presets_ui_ok = false
+
+	_assert_true(
+		presets_ui_ok
+		and is_equal_approx(float(ds.config_vehiculos[1]["velocidad_maxima"]), vel_card1_inicial)
+		and ds.config_vehiculos[2]["arquetipo"] == arq_card2_inicial,
+		"Los 4 arquetipos aplican valores exactos, resaltan su boton y mantienen independencia entre tarjetas"
+	)
+
+	# Intentar desmarcar botón ya activo (button_pressed = false) y re-clic mantiene el arquetipo activo
+	(btns0["Técnico"] as Button).button_pressed = false
+	await _esperar_frames(1)
+	_assert_true(
+		lbl_arq0.text == "Técnico"
+		and ds.config_vehiculos[0]["arquetipo"] == "Técnico"
+		and (btns0["Técnico"] as Button).button_pressed,
+		"Regresion toggled(false) en BtnArq activo mantiene button_pressed=true, LblArquetipo y DatosSimulacion"
+	)
+	(btns0["Técnico"] as Button).pressed.emit()
+	await _esperar_frames(1)
+	_assert_true(
+		lbl_arq0.text == "Técnico"
+		and ds.config_vehiculos[0]["arquetipo"] == "Técnico"
+		and (btns0["Técnico"] as Button).button_pressed,
+		"Re-seleccionar el boton de arquetipo activo mantiene el arquetipo seleccionado"
+	)
+
+	# Mover un slider manualmente cambia indicador a Personalizado y persiste
+	vista.aplicar_arquetipo(0, "Velocista")
+	await _esperar_frames(1)
+	var slider_agarre0: HSlider = box_atr0.get_child(4).get_child(1)
+	slider_agarre0.value = 0.62
+	await _esperar_frames(1)
+
+	var botones_desmarcados := true
+	for k_btn: String in btns0.keys():
+		if (btns0[k_btn] as Button).button_pressed:
+			botones_desmarcados = false
+	_assert_true(
+		lbl_arq0.text == "Personalizado"
+		and ds.config_vehiculos[0]["arquetipo"] == "Personalizado"
+		and is_equal_approx(float(ds.config_vehiculos[0]["agarre"]), 0.62)
+		and botones_desmarcados,
+		"Mover cualquier slider manualmente cambia indicador a 'Personalizado' y desmarca presets"
+	)
+
+	# Aplicar Drift en tarjeta 1 y Personalizado en tarjeta 0; verificar persistencia tras recarga
+	vista.aplicar_arquetipo(1, "Drift")
+	vista._guardar_configuraciones()
+	vp.queue_free()
+	await _esperar_frames(2)
+
+	var vp_re := SubViewport.new()
+	vp_re.size = Vector2i(1280, 720)
+	root.add_child(vp_re)
+	var vista_re := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_re.add_child(vista_re)
+	await _esperar_frames(3)
+
+	var lbl_arq_re0: Label = vista_re.contenedor_tarjetas.get_child(0).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var lbl_arq_re1: Label = vista_re.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var btn_drift_re1: Button = vista_re.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqDrift")
+	_assert_true(
+		lbl_arq_re0.text == "Personalizado"
+		and ds.config_vehiculos[0]["arquetipo"] == "Personalizado"
+		and is_equal_approx(float(ds.config_vehiculos[0]["agarre"]), 0.62)
+		and lbl_arq_re1.text == "Drift"
+		and ds.config_vehiculos[1]["arquetipo"] == "Drift"
+		and btn_drift_re1.button_pressed,
+		"Arquetipo seleccionado y cambio a Personalizado persisten tras recargar Vista 3"
+	)
+	vp_re.queue_free()
+	await _esperar_frames(2)
+
+	# Saneamiento de arquetipos corruptos al cargar Vista 3
+	ds.config_vehiculos[0]["arquetipo"] = "Inexistente"
+	ds.config_vehiculos[1]["arquetipo"] = null
+	ds.config_vehiculos[2]["arquetipo"] = "Tecnico"
+
+	var vp_corrupt := SubViewport.new()
+	vp_corrupt.size = Vector2i(1280, 720)
+	root.add_child(vp_corrupt)
+	var vista_corrupt := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_corrupt.add_child(vista_corrupt)
+	await _esperar_frames(3)
+
+	var lbl_c0: Label = vista_corrupt.contenedor_tarjetas.get_child(0).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var lbl_c1: Label = vista_corrupt.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var lbl_c2: Label = vista_corrupt.contenedor_tarjetas.get_child(2).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/HeaderArq/LblArquetipo")
+	var btn_tec_c2: Button = vista_corrupt.contenedor_tarjetas.get_child(2).get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqTecnico")
+	_assert_true(
+		ds.config_vehiculos[0]["arquetipo"] == "Personalizado" and lbl_c0.text == "Personalizado"
+		and ds.config_vehiculos[1]["arquetipo"] == "Personalizado" and lbl_c1.text == "Personalizado"
+		and ds.config_vehiculos[2]["arquetipo"] == "Técnico" and lbl_c2.text == "Técnico"
+		and btn_tec_c2.button_pressed,
+		"Vista 3 sanea arquetipos corruptos ('Inexistente'/null -> 'Personalizado', 'Tecnico' -> 'Técnico') al cargar"
+	)
+
+	vp_corrupt.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_backup
+
+
+func _test_g_modo_piloto_humano_y_exclusividad(ds: Node) -> void:
+	print("--- Test (g): Selector IA / Piloto Humano, exclusividad max-1, controles y saneamiento ---")
+	var cfg_backup: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.restaurar_config_vehiculos_defecto()
+
+	# Verificar sanitizar_es_humano estricto (nunca bool(String))
+	_assert_true(
+		ds.sanitizar_es_humano(true) == true
+		and ds.sanitizar_es_humano(false) == false
+		and ds.sanitizar_es_humano(1) == true
+		and ds.sanitizar_es_humano(0) == false
+		and ds.sanitizar_es_humano("false") == false
+		and ds.sanitizar_es_humano("true") == false
+		and ds.sanitizar_es_humano("bad") == false
+		and ds.sanitizar_es_humano(null) == false
+		and ds.sanitizar_es_humano(1.5) == false,
+		"sanitizar_es_humano() aplica comprobacion estricta de tipo (rechaza String 'false'/'true' y null)"
+	)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1440, 900)
+	root.add_child(vp)
+
+	var vista := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp.add_child(vista)
+	await _esperar_frames(3)
+
+	var btns_ia: Array[Button] = []
+	var btns_hum: Array[Button] = []
+	var opts_ia: Array[OptionButton] = []
+	var lbls_estado: Array[Label] = []
+	var lbls_desc: Array[Label] = []
+	for i in range(3):
+		var t: Node = vista.contenedor_tarjetas.get_child(i)
+		btns_ia.append(t.get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoIA") as Button)
+		btns_hum.append(t.get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoHumano") as Button)
+		opts_ia.append(t.get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA") as OptionButton)
+		lbls_estado.append(t.get_node("VBox/Margin/Cuerpo/SeccionIA/LblEstadoIA") as Label)
+		lbls_desc.append(t.get_node("VBox/Margin/Cuerpo/SeccionIA/LblDescIA") as Label)
+
+	# Estado inicial: todos en IA
+	var inicio_ia_ok: bool = ds.obtener_indice_humano() == -1
+	for i in range(3):
+		if ds.config_vehiculos[i]["es_humano"] != false or not btns_ia[i].button_pressed or btns_hum[i].button_pressed or opts_ia[i].disabled:
+			inicio_ia_ok = false
+	_assert_true(inicio_ia_ok, "Estado inicial de las 3 tarjetas es modo IA con OptNivelIA habilitado")
+
+	# Activar Piloto Humano en tarjeta 0 por .pressed.emit()
+	btns_hum[0].pressed.emit()
+	await _esperar_frames(1)
+
+	var t0_humano_ok: bool = (
+		ds.obtener_indice_humano() == 0
+		and ds.config_vehiculos[0]["es_humano"] == true
+		and ds.config_vehiculos[1]["es_humano"] == false
+		and ds.config_vehiculos[2]["es_humano"] == false
+		and btns_hum[0].button_pressed and not btns_ia[0].button_pressed
+		and not btns_hum[1].button_pressed and btns_ia[1].button_pressed
+		and not btns_hum[2].button_pressed and btns_ia[2].button_pressed
+		and opts_ia[0].disabled == true
+		and opts_ia[1].disabled == false
+		and opts_ia[2].disabled == false
+		and lbls_estado[0].text.contains("Piloto Humano")
+		and lbls_desc[0].text.contains("WASD")
+		and lbls_desc[0].text.contains("Flechas")
+	)
+	_assert_true(t0_humano_ok, "Activar Piloto Humano en tarjeta 0 deshabilita OptNivelIA, actualiza etiquetas y mantiene tarjetas 1-2 en IA")
+
+	# En Piloto Humano, arquetipos y sliders siguen activos y editables
+	var card0: Node = vista.contenedor_tarjetas.get_child(0)
+	var btn_drift0: Button = card0.get_node("VBox/Margin/Cuerpo/SeccionArquetipos/GridArquetipos/BtnArqDrift")
+	var box_atr0: VBoxContainer = card0.get_node("VBox/Margin/Cuerpo/Atributos")
+	var controles_activos_ok: bool = not btn_drift0.disabled
+	btn_drift0.pressed.emit()
+	await _esperar_frames(1)
+	if not is_equal_approx(float(ds.config_vehiculos[0]["agarre"]), 0.25) or ds.config_vehiculos[0]["es_humano"] != true:
+		controles_activos_ok = false
+	for s_idx in range(5):
+		var slider: HSlider = box_atr0.get_child(s_idx).get_child(1)
+		if not slider.editable:
+			controles_activos_ok = false
+	var slider_vel0: HSlider = box_atr0.get_child(0).get_child(1)
+	slider_vel0.value = 0.88
+	await _esperar_frames(1)
+	if not is_equal_approx(float(ds.config_vehiculos[0]["velocidad_maxima"]), 0.88) or ds.config_vehiculos[0]["arquetipo"] != "Personalizado":
+		controles_activos_ok = false
+	_assert_true(controles_activos_ok, "En modo Piloto Humano permanecen activos los presets de arquetipo y los 5 sliders fisicos")
+
+	# Exclusividad max-1 al activar Piloto Humano en tarjeta 2 (.button_pressed = true -> toggled)
+	btns_hum[2].button_pressed = true
+	await _esperar_frames(1)
+	var excl_2_ok: bool = (
+		ds.obtener_indice_humano() == 2
+		and ds.config_vehiculos[0]["es_humano"] == false
+		and ds.config_vehiculos[1]["es_humano"] == false
+		and ds.config_vehiculos[2]["es_humano"] == true
+		and not btns_hum[0].button_pressed and btns_ia[0].button_pressed
+		and btns_hum[2].button_pressed and not btns_ia[2].button_pressed
+		and opts_ia[0].disabled == false
+		and opts_ia[2].disabled == true
+		and lbls_desc[0].text == ds.NIVELES_IA[int(ds.config_vehiculos[0]["nivel_ia"]) - 1]["desc"]
+	)
+	_assert_true(excl_2_ok, "Activar Piloto Humano en tarjeta 2 desactiva automaticamente tarjeta 0 y restaura su selector/descripcion IA")
+
+	# Volver tarjeta 2 a IA por clic en BtnModoIA y probar API pública establecer_modo_humano
+	btns_ia[2].pressed.emit()
+	await _esperar_frames(1)
+	var todo_ia_ok: bool = ds.obtener_indice_humano() == -1 and not opts_ia[2].disabled and btns_ia[2].button_pressed
+
+	# Regresión toggled(false) en BtnModoIA activo: nunca pueden quedar ambos botones en false
+	btns_ia[0].button_pressed = false
+	await _esperar_frames(1)
+	_assert_true(
+		btns_ia[0].button_pressed
+		and not btns_hum[0].button_pressed
+		and ds.config_vehiculos[0]["es_humano"] == false,
+		"Regresion toggled(false) en BtnModoIA activo mantiene BtnModoIA=true y BtnModoHumano=false"
+	)
+
+	vista.establecer_modo_humano(1, true)
+	await _esperar_frames(1)
+	var api_hum_ok: bool = (
+		ds.obtener_indice_humano() == 1
+		and ds.config_vehiculos[1]["es_humano"] == true
+		and opts_ia[1].disabled == true
+		and btns_hum[1].button_pressed
+	)
+
+	# Regresión re-clic real con ratón sobre BtnModoHumano ya activo: sin parpadeo transitorio a IA
+	var flip_ia_transitorio := [false]
+	var spy_ia := func(_pressed_val: bool): flip_ia_transitorio[0] = true
+	btns_ia[1].toggled.connect(spy_ia)
+	var centro_hum1 := btns_hum[1].get_global_rect().get_center()
+	var ev_down := InputEventMouseButton.new()
+	ev_down.button_index = MOUSE_BUTTON_LEFT
+	ev_down.pressed = true
+	ev_down.position = centro_hum1
+	vp.push_input(ev_down)
+	var ev_up := InputEventMouseButton.new()
+	ev_up.button_index = MOUSE_BUTTON_LEFT
+	ev_up.pressed = false
+	ev_up.position = centro_hum1
+	vp.push_input(ev_up)
+	await _esperar_frames(1)
+	btns_ia[1].toggled.disconnect(spy_ia)
+	_assert_true(
+		not flip_ia_transitorio[0]
+		and ds.obtener_indice_humano() == 1
+		and ds.config_vehiculos[1]["es_humano"] == true
+		and btns_hum[1].button_pressed
+		and not btns_ia[1].button_pressed
+		and opts_ia[1].disabled,
+		"Re-clic real sobre BtnModoHumano activo mantiene Piloto Humano sin cambio transitorio a IA"
+	)
+
+	btns_hum[1].button_pressed = false
+	await _esperar_frames(1)
+	var toggled_off_ok: bool = (
+		ds.obtener_indice_humano() == -1
+		and ds.config_vehiculos[1]["es_humano"] == false
+		and not opts_ia[1].disabled
+		and btns_ia[1].button_pressed
+		and not btns_hum[1].button_pressed
+	)
+	_assert_true(todo_ia_ok and api_hum_ok and toggled_off_ok, "BtnModoIA, establecer_modo_humano() y toggled(false) alternan el modo limpiamente")
+
+	# Persistencia de es_humano tras guardar y recargar Vista 3
+	vista.establecer_modo_humano(1, true)
+	vista._guardar_configuraciones()
+	vp.queue_free()
+	await _esperar_frames(2)
+
+	var vp_re := SubViewport.new()
+	vp_re.size = Vector2i(1280, 720)
+	root.add_child(vp_re)
+	var vista_re := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_re.add_child(vista_re)
+	await _esperar_frames(3)
+
+	var opt_re0: OptionButton = vista_re.contenedor_tarjetas.get_child(0).get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+	var opt_re1: OptionButton = vista_re.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+	var btn_hum_re1: Button = vista_re.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoHumano")
+	_assert_true(
+		ds.obtener_indice_humano() == 1
+		and ds.config_vehiculos[1]["es_humano"] == true
+		and opt_re1.disabled == true
+		and btn_hum_re1.button_pressed
+		and ds.config_vehiculos[0]["es_humano"] == false
+		and opt_re0.disabled == false,
+		"Modo Piloto Humano (es_humano) persiste tras guardar y recargar Vista 3"
+	)
+	vp_re.queue_free()
+	await _esperar_frames(2)
+
+	# Saneamiento al cargar cuando >1 vehículo tiene es_humano=true o tipos inválidos ('false' String / null)
+	ds.config_vehiculos[0]["es_humano"] = true
+	ds.config_vehiculos[1]["es_humano"] = true
+	ds.config_vehiculos[2]["es_humano"] = true
+
+	var vp_multi := SubViewport.new()
+	vp_multi.size = Vector2i(1280, 720)
+	root.add_child(vp_multi)
+	var vista_multi := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_multi.add_child(vista_multi)
+	await _esperar_frames(3)
+
+	var cant_humanos := 0
+	var tipos_bool_ok := true
+	for cfg_m: Dictionary in ds.config_vehiculos:
+		if not (cfg_m["es_humano"] is bool):
+			tipos_bool_ok = false
+		if cfg_m["es_humano"] == true:
+			cant_humanos += 1
+	var opt_m0: OptionButton = vista_multi.contenedor_tarjetas.get_child(0).get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+	var opt_m1: OptionButton = vista_multi.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+	var opt_m2: OptionButton = vista_multi.contenedor_tarjetas.get_child(2).get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+	_assert_true(
+		tipos_bool_ok and cant_humanos == 1 and ds.obtener_indice_humano() == 0
+		and opt_m0.disabled and not opt_m1.disabled and not opt_m2.disabled,
+		"Vista 3 sanea multiples es_humano=true al cargar imponiendo exclusividad max-1 (gana el primero)"
+	)
+	vp_multi.queue_free()
+	await _esperar_frames(2)
+
+	ds.config_vehiculos[0]["es_humano"] = "false"
+	ds.config_vehiculos[1]["es_humano"] = null
+	ds.config_vehiculos[2]["es_humano"] = "true"
+	var vp_str := SubViewport.new()
+	vp_str.size = Vector2i(1280, 720)
+	root.add_child(vp_str)
+	var vista_str := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_str.add_child(vista_str)
+	await _esperar_frames(3)
+
+	_assert_true(
+		ds.obtener_indice_humano() == -1
+		and ds.config_vehiculos[0]["es_humano"] is bool and ds.config_vehiculos[0]["es_humano"] == false
+		and ds.config_vehiculos[1]["es_humano"] is bool and ds.config_vehiculos[1]["es_humano"] == false
+		and ds.config_vehiculos[2]["es_humano"] is bool and ds.config_vehiculos[2]["es_humano"] == false,
+		"Vista 3 sanea es_humano con Strings ('false'/'true') y null a bool false sin caer en bool(String)"
+	)
+	vp_str.queue_free()
+	await _esperar_frames(2)
+
+	# Regresión: normalización de arreglos cortos (1 y 2 entradas) y sobredimensionados (4 entradas con es_humano en índice 3)
+	var solo_uno: Array[Dictionary] = [{"nombre": "SoloUno"}]
+	ds.config_vehiculos = solo_uno
+	var vp_1 := SubViewport.new()
+	vp_1.size = Vector2i(1280, 720)
+	root.add_child(vp_1)
+	var vista_1 := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_1.add_child(vista_1)
+	await _esperar_frames(3)
+
+	var uno_ok: bool = ds.config_vehiculos.size() == 3 and ds.config_vehiculos[0]["nombre"] == "SoloUno"
+	for i in range(3):
+		var t1: Node = vista_1.contenedor_tarjetas.get_child(i)
+		var opt1: OptionButton = t1.get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+		var atr1: VBoxContainer = t1.get_node("VBox/Margin/Cuerpo/Atributos")
+		if opt1.item_count != 10 or atr1.get_child_count() != 5:
+			uno_ok = false
+	var btn_hum_1: Button = vista_1.contenedor_tarjetas.get_child(1).get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoHumano")
+	btn_hum_1.pressed.emit()
+	await _esperar_frames(1)
+	uno_ok = uno_ok and ds.obtener_indice_humano() == 1
+	_assert_true(uno_ok, "Arreglo de 1 entrada se normaliza a 3 slots y configura las 3 tarjetas completas")
+	vp_1.queue_free()
+	await _esperar_frames(2)
+
+	var dos_entradas: Array[Dictionary] = [{"nombre": "Uno"}, {"nombre": "Dos"}]
+	ds.config_vehiculos = dos_entradas
+	var vp_2 := SubViewport.new()
+	vp_2.size = Vector2i(1280, 720)
+	root.add_child(vp_2)
+	var vista_2 := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_2.add_child(vista_2)
+	await _esperar_frames(3)
+
+	var dos_ok: bool = ds.config_vehiculos.size() == 3
+	for i in range(3):
+		var t2: Node = vista_2.contenedor_tarjetas.get_child(i)
+		var opt2: OptionButton = t2.get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+		var atr2: VBoxContainer = t2.get_node("VBox/Margin/Cuerpo/Atributos")
+		if opt2.item_count != 10 or atr2.get_child_count() != 5:
+			dos_ok = false
+	_assert_true(dos_ok, "Arreglo de 2 entradas se normaliza a 3 slots y configura las 3 tarjetas completas")
+	vp_2.queue_free()
+	await _esperar_frames(2)
+
+	var cuatro_entradas: Array[Dictionary] = [
+		{"nombre": "V0", "es_humano": false},
+		{"nombre": "V1", "es_humano": false},
+		{"nombre": "V2", "es_humano": false},
+		{"nombre": "V3", "es_humano": true},
+	]
+	ds.config_vehiculos = cuatro_entradas
+	var vp_4 := SubViewport.new()
+	vp_4.size = Vector2i(1280, 720)
+	root.add_child(vp_4)
+	var vista_4 := (load(RUTA_CONFIG) as PackedScene).instantiate() as Control
+	vp_4.add_child(vista_4)
+	await _esperar_frames(3)
+
+	var cuatro_ok: bool = ds.config_vehiculos.size() == 3 and ds.obtener_indice_humano() == -1
+	for i in range(3):
+		var t4: Node = vista_4.contenedor_tarjetas.get_child(i)
+		var opt4: OptionButton = t4.get_node("VBox/Margin/Cuerpo/SeccionIA/OptNivelIA")
+		var atr4: VBoxContainer = t4.get_node("VBox/Margin/Cuerpo/Atributos")
+		var btn_ia4: Button = t4.get_node("VBox/Margin/Cuerpo/SeccionIA/HBoxModo/BtnModoIA")
+		if opt4.item_count != 10 or atr4.get_child_count() != 5 or opt4.disabled or not btn_ia4.button_pressed:
+			cuatro_ok = false
+	_assert_true(cuatro_ok, "Arreglo de 4 entradas (es_humano=true en indice 3) se recorta a 3 slots con obtener_indice_humano() == -1")
+	vp_4.queue_free()
+	await _esperar_frames(2)
+
+	var cuatro_con_uno: Array[Dictionary] = [
+		{"nombre": "V0", "es_humano": false},
+		{"nombre": "V1", "es_humano": true},
+		{"nombre": "V2", "es_humano": false},
+		{"nombre": "V3", "es_humano": true},
+	]
+	ds.config_vehiculos = cuatro_con_uno
+	ds.sanitizar_config_vehiculos()
+	_assert_true(
+		ds.config_vehiculos.size() == 3 and ds.obtener_indice_humano() == 1,
+		"Arreglo de 4 entradas con es_humano=true en indice 1 y 3 mantiene max-1 dentro de 0..2"
+	)
+
+	ds.config_vehiculos = cfg_backup
