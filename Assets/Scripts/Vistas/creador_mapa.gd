@@ -10,11 +10,14 @@ const ESCENA_CONFIGURACION := "res://Assets/Escenas/Vistas/configuracion_carrera
 
 @onready var panel_lateral: PanelContainer = $Layout/Cuerpo/PanelLateral
 
-@onready var btn_pincel: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnPincel
-@onready var btn_borrador: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnBorrador
-@onready var btn_meta: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnMeta
-@onready var opt_grosor: OptionButton = $Layout/Cuerpo/PanelLateral/Margin/VBox/OptGrosor
-@onready var btn_limpiar: Button = $Layout/Cuerpo/PanelLateral/Margin/VBox/BtnLimpiar
+@onready var btn_pincel: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnPincel
+@onready var btn_borrador: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnBorrador
+@onready var btn_meta: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnMeta
+@onready var opt_grosor: OptionButton = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/OptGrosor
+@onready var btn_arq_ovalo: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnArqOvalo
+@onready var btn_arq_enlazadas: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnArqEnlazadas
+@onready var btn_arq_horquilla: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnArqHorquilla
+@onready var btn_limpiar: Button = $Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas/VBox/BtnLimpiar
 
 @onready var area_lienzo: Control = $Layout/Cuerpo/AreaLienzo
 @onready var editor_pista: Node2D = $Layout/Cuerpo/AreaLienzo/EditorPista
@@ -35,6 +38,9 @@ func _ready() -> void:
 	btn_borrador.pressed.connect(func(): editor_pista.establecer_herramienta(editor_pista.Herramienta.BORRADOR))
 	btn_meta.pressed.connect(func(): editor_pista.establecer_herramienta(editor_pista.Herramienta.META))
 	opt_grosor.item_selected.connect(_on_grosor_seleccionado)
+	btn_arq_ovalo.pressed.connect(func(): cargar_arquetipo_pista(ArquetiposPista.OVALO_CLASICO))
+	btn_arq_enlazadas.pressed.connect(func(): cargar_arquetipo_pista(ArquetiposPista.S_ENLAZADAS))
+	btn_arq_horquilla.pressed.connect(func(): cargar_arquetipo_pista(ArquetiposPista.HORQUILLA_TECNICA))
 	btn_limpiar.pressed.connect(_on_limpiar_pressed)
 	btn_volver.pressed.connect(_on_volver_pressed)
 	btn_editar.pressed.connect(_on_editar_pressed)
@@ -66,6 +72,30 @@ func _configurar_selector_grosor() -> void:
 func _on_grosor_seleccionado(index: int) -> void:
 	var grosor := opt_grosor.get_item_id(index)
 	editor_pista.establecer_grosor(grosor)
+
+
+func _seleccionar_grosor_ui(grosor: int) -> void:
+	for i in range(opt_grosor.item_count):
+		if opt_grosor.get_item_id(i) == grosor:
+			opt_grosor.select(i)
+			return
+
+
+func cargar_arquetipo_pista(indice_o_clave: Variant) -> void:
+	var arq := ArquetiposPista.obtener_arquetipo(indice_o_clave, DatosSimulacion.TAMANIO_CELDA)
+	if _en_vista_previa:
+		_en_vista_previa = false
+		btn_editar.visible = false
+		panel_lateral.visible = true
+		btn_confirmar.text = "Confirmar Pista"
+
+	var grosor := int(arq.get("grosor_sugerido", 3))
+	_seleccionar_grosor_ui(grosor)
+	editor_pista.cargar_arquetipo(
+		arq.get("celdas", {}),
+		arq.get("celda_meta", Vector2i(-1, -1)),
+		grosor
+	)
 
 
 func _on_pista_actualizada(es_valida: bool, mensaje: String) -> void:

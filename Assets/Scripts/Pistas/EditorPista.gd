@@ -130,6 +130,45 @@ func limpiar_todo() -> void:
 	overlay.queue_redraw()
 
 
+func cargar_arquetipo(celdas: Dictionary, meta: Vector2i, grosor: int = 3) -> void:
+	if tile_map.tile_set == null:
+		_configurar_tileset()
+
+	if _modo_vista_previa:
+		volver_a_edicion()
+	else:
+		_modo_vista_previa = false
+		_interaccion_habilitada = true
+		tile_map_final.visible = false
+		tile_map.visible = true
+
+	tile_map_final.clear()
+	_pintando = false
+	_borrando_rapido = false
+	_ultima_celda_trazo = Vector2i(-1, -1)
+
+	grosor_pincel = clampi(grosor, 1, 5)
+	celdas_asfalto.clear()
+	_rellenar_pasto()
+
+	for k in celdas.keys():
+		if k is Vector2i and bool(celdas[k]):
+			var c: Vector2i = k
+			if _celda_en_tablero(c):
+				celdas_asfalto[c] = true
+				tile_map.set_cell(c, 0, TILE_ASFALTO)
+
+	if _celda_en_tablero(meta) and celdas_asfalto.has(meta):
+		celda_meta = meta
+		tiene_meta = true
+	else:
+		celda_meta = Vector2i(-1, -1)
+		tiene_meta = false
+
+	_revalidar_pista()
+	overlay.queue_redraw()
+
+
 func obtener_validacion() -> Dictionary:
 	return ultima_validacion
 
