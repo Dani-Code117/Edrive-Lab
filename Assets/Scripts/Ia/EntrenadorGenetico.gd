@@ -86,13 +86,17 @@ static func entrenar_en_arbol(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = semilla
 
-	var circuito_ovalo := crear_circuito_entrenamiento(0)
-	var circuito_chicana := crear_circuito_entrenamiento(1)
+	var circuito_ovalo := crear_circuito_entrenamiento(ArquetiposPista.OVALO_CLASICO)
+	var circuito_s := crear_circuito_entrenamiento(ArquetiposPista.S_ENLAZADAS)
+	var circuito_horquilla := crear_circuito_entrenamiento(ArquetiposPista.HORQUILLA_TECNICA)
 	if not circuito_ovalo.get("validacion", {}).get("valido", false):
 		push_error("EntrenadorGenetico: Circuito Óvalo inválido.")
 		return resultados
-	if not circuito_chicana.get("validacion", {}).get("valido", false):
-		push_error("EntrenadorGenetico: Circuito Chicana inválido.")
+	if not circuito_s.get("validacion", {}).get("valido", false):
+		push_error("EntrenadorGenetico: Circuito S-Enlazadas inválido.")
+		return resultados
+	if not circuito_horquilla.get("validacion", {}).get("valido", false):
+		push_error("EntrenadorGenetico: Circuito Horquilla Técnica inválido.")
 		return resultados
 
 	var poblacion: Array[RedNeuronal] = []
@@ -123,10 +127,15 @@ static func entrenar_en_arbol(
 		var fitnesses := PackedFloat64Array()
 		fitnesses.resize(tamano_poblacion)
 
-		var eval_doble := gen >= 15 or max_generaciones <= 2
-		var stats_chicana: Array[Dictionary] = []
-		if eval_doble:
-			stats_chicana = await _evaluar_poblacion_en_pista(arbol, poblacion, circuito_chicana, max_ticks, 0.75)
+		var eval_s := gen >= 15 or max_generaciones <= 2
+		var stats_s: Array[Dictionary] = []
+		if eval_s:
+			stats_s = await _evaluar_poblacion_en_pista(arbol, poblacion, circuito_s, max_ticks, 0.75)
+
+		var eval_horquilla := gen >= 35 or max_generaciones <= 2
+		var stats_horquilla: Array[Dictionary] = []
+		if eval_horquilla:
+			stats_horquilla = await _evaluar_poblacion_en_pista(arbol, poblacion, circuito_horquilla, max_ticks, 0.75)
 
 		var mejor_idx := 0
 		var mejor_fit := -1.0
@@ -137,18 +146,28 @@ static func entrenar_en_arbol(
 
 		for i in range(tamano_poblacion):
 			var so: Dictionary = stats_ovalo[i]
-			var fit: float = float(so["fitness"])
+			var suma_fit: float = float(so["fitness"])
+			var num_pistas: int = 1
 			var cps: int = int(so["checkpoints"])
 			var vueltas: int = int(so["vueltas"])
 			var cps_ambas := cps
 			var vueltas_ambas := vueltas
 
-			if eval_doble and i < stats_chicana.size():
-				var sc: Dictionary = stats_chicana[i]
-				fit = (fit + float(sc["fitness"])) * 0.5
-				cps_ambas = mini(cps, int(sc["checkpoints"]))
-				vueltas_ambas = mini(vueltas, int(sc["vueltas"]))
+			if eval_s and i < stats_s.size():
+				var ss: Dictionary = stats_s[i]
+				suma_fit += float(ss["fitness"])
+				num_pistas += 1
+				cps_ambas = mini(cps_ambas, int(ss["checkpoints"]))
+				vueltas_ambas = mini(vueltas_ambas, int(ss["vueltas"]))
 
+			if eval_horquilla and i < stats_horquilla.size():
+				var sh: Dictionary = stats_horquilla[i]
+				suma_fit += float(sh["fitness"])
+				num_pistas += 1
+				cps_ambas = mini(cps_ambas, int(sh["checkpoints"]))
+				vueltas_ambas = mini(vueltas_ambas, int(sh["vueltas"]))
+
+			var fit := suma_fit / float(num_pistas)
 			fitnesses[i] = fit
 			if fit > mejor_fit:
 				mejor_fit = fit
@@ -430,61 +449,20 @@ static func seleccion_torneo(
 
 
 static func construir_celdas_trazo(waypoints: Array[Vector2i], radio_brocha: int = 1) -> Dictionary:
-	var celdas: Dictionary = {}
-	if waypoints.size() < 2:
-		return celdas
-
-	for idx in range(waypoints.size() - 1):
-		var a := waypoints[idx]
-		var b := waypoints[idx + 1]
-		var pasos := maxi(1, maxi(absi(b.x - a.x), absi(b.y - a.y)))
-		for s in range(pasos + 1):
-			var t := float(s) / float(pasos)
-			var cx := roundi(lerpf(float(a.x), float(b.x), t))
-			var cy := roundi(lerpf(float(a.y), float(b.y), t))
-			for dx in range(-radio_brocha, radio_brocha + 1):
-				for dy in range(-radio_brocha, radio_brocha + 1):
-					celdas[Vector2i(cx + dx, cy + dy)] = true
-	return celdas
+	return ArquetiposPista.construir_celdas_trazo(waypoints, radio_brocha)
 
 
 static func crear_circuito_entrenamiento(indice: int = 0) -> Dictionary:
 	var tam_celda := _obtener_tamanio_celda()
-	var waypoints: Array[Vector2i]
-	var celda_meta: Vector2i
-	var nombre: String
-
-	if indice == 1:
-		nombre = "Chicana Asimétrica"
-		waypoints = [
-			Vector2i(8, 6),
-			Vector2i(36, 6),
-			Vector2i(36, 13),
-			Vector2i(26, 13),
-			Vector2i(22, 20),
-			Vector2i(8, 20),
-			Vector2i(8, 6),
-		]
-		celda_meta = Vector2i(14, 6)
-	else:
-		nombre = "Óvalo Técnico"
-		waypoints = [
-			Vector2i(7, 5),
-			Vector2i(37, 5),
-			Vector2i(37, 21),
-			Vector2i(7, 21),
-			Vector2i(7, 5),
-		]
-		celda_meta = Vector2i(14, 5)
-
-	var celdas := construir_celdas_trazo(waypoints, 1)
-	var validacion := GeneradorCheckpoints.validar_y_generar(celdas, celda_meta, true, tam_celda)
+	var arq := ArquetiposPista.obtener_arquetipo(indice, tam_celda)
 	return {
-		"nombre": nombre,
-		"celdas": celdas,
-		"celda_meta": celda_meta,
-		"tam_celda": tam_celda,
-		"validacion": validacion,
+		"id": arq["id"],
+		"clave": arq["clave"],
+		"nombre": arq["nombre"],
+		"celdas": arq["celdas"],
+		"celda_meta": arq["celda_meta"],
+		"tam_celda": arq["tam_celda"],
+		"validacion": arq["validacion"],
 	}
 
 

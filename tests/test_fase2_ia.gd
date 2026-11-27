@@ -6,6 +6,8 @@ extends SceneTree
 
 const RUTA_VEHICULO := "res://Assets/Escenas/Componentes/vehiculo_agente.tscn"
 const RUTA_PRESETS_IA := "res://Assets/Presets_ia"
+const RUTA_CREADOR := "res://Assets/Escenas/Vistas/creador_mapa.tscn"
+const RUTA_TEMA_TELEMETRIA := "res://Assets/Temas/tema_telemetria.tres"
 
 var _total_checks: int = 0
 var _failures: int = 0
@@ -37,6 +39,7 @@ func _run_all() -> void:
 	_test_c_casos_borde_nan_inf_tamanos_y_operadores()
 	await _test_d_integracion_vehiculo_agente()
 	await _test_e_entrenador_genetico_y_presets_vacios()
+	await _test_f_arquetipos_pista_y_creador_mapa()
 
 	print("=== Resumen Fase 2: %d verificaciones, %d fallos ===" % [_total_checks, _failures])
 	quit(0 if _failures == 0 else 1)
@@ -412,9 +415,25 @@ func _test_e_entrenador_genetico_y_presets_vacios() -> void:
 
 	var c0 := EntrenadorGenetico.crear_circuito_entrenamiento(0)
 	var c1 := EntrenadorGenetico.crear_circuito_entrenamiento(1)
+	var c2 := EntrenadorGenetico.crear_circuito_entrenamiento(2)
+	var a0 := ArquetiposPista.obtener_arquetipo(0, 16)
+	var a1 := ArquetiposPista.obtener_arquetipo(1, 16)
+	var a2 := ArquetiposPista.obtener_arquetipo(2, 16)
 	_assert_true(
-		bool(c0["validacion"]["valido"]) and bool(c1["validacion"]["valido"]),
-		"Circuitos de entrenamiento (Ovalo y Chicana) validan en sentido horario"
+		bool(c0["validacion"]["valido"])
+		and bool(c1["validacion"]["valido"])
+		and bool(c2["validacion"]["valido"])
+		and c0["validacion"]["checkpoints"].size() >= 6
+		and c1["validacion"]["checkpoints"].size() >= 6
+		and c2["validacion"]["checkpoints"].size() >= 6
+		and int(c0["tam_celda"]) == 16 and int(c1["tam_celda"]) == 16 and int(c2["tam_celda"]) == 16
+		and _diccionarios_celdas_iguales(c0["celdas"], a0["celdas"])
+		and _diccionarios_celdas_iguales(c1["celdas"], a1["celdas"])
+		and _diccionarios_celdas_iguales(c2["celdas"], a2["celdas"])
+		and not _diccionarios_celdas_iguales(c0["celdas"], c1["celdas"])
+		and not _diccionarios_celdas_iguales(c0["celdas"], c2["celdas"])
+		and not _diccionarios_celdas_iguales(c1["celdas"], c2["celdas"]),
+		"Circuitos de entrenamiento (0, 1, 2) reutilizan ArquetiposPista y validan en sentido horario"
 	)
 
 	# Verificación rápida en memoria (1 generación, 6 agentes, 20 ticks, guardar_en_disco=false)
@@ -475,3 +494,327 @@ func _test_e_entrenador_genetico_y_presets_vacios() -> void:
 		tiene_gitkeep and not tiene_tres and archivos.size() == 1,
 		"Assets/Presets_ia/ contiene unicamente .gitkeep y cero .tres (archivos: %s)" % str(archivos)
 	)
+
+
+func _test_f_arquetipos_pista_y_creador_mapa() -> void:
+	print("--- Test (f): ArquetiposPista, carga editable en Vista 2 y layout responsivo ---")
+	var lista := ArquetiposPista.obtener_lista()
+	_assert_true(
+		lista.size() == 3
+		and int(lista[0]["id"]) == ArquetiposPista.OVALO_CLASICO
+		and int(lista[1]["id"]) == ArquetiposPista.S_ENLAZADAS
+		and int(lista[2]["id"]) == ArquetiposPista.HORQUILLA_TECNICA,
+		"ArquetiposPista.obtener_lista() expone los 3 arquetipos esperados"
+	)
+
+	var arqs_por_id: Array[Dictionary] = []
+	var claves_esperadas := ["ovalo_clasico", "s_enlazadas", "horquilla_tecnica"]
+	for i in range(3):
+		var arq := ArquetiposPista.obtener_arquetipo(i, 16)
+		var arq_clave := ArquetiposPista.obtener_arquetipo(claves_esperadas[i], 16)
+		arqs_por_id.append(arq)
+
+		var celdas: Dictionary = arq.get("celdas", {})
+		var meta: Vector2i = arq.get("celda_meta", Vector2i(-1, -1))
+		var val: Dictionary = arq.get("validacion", {})
+		var eje: Array = val.get("eje_central", [])
+		var cps: Array = val.get("checkpoints", [])
+
+		var dentro_limites := not celdas.is_empty()
+		for k in celdas.keys():
+			if not (k is Vector2i):
+				dentro_limites = false
+				break
+			var c: Vector2i = k
+			if c.x < 1 or c.x > 43 or c.y < 1 or c.y > 25:
+				dentro_limites = false
+				break
+
+		var suma_cruz := _calcular_suma_cruz_horaria(eje)
+		_assert_true(
+			bool(val.get("valido", false))
+			and cps.size() >= 6
+			and celdas.has(meta)
+			and dentro_limites
+			and suma_cruz > 0.0
+			and _diccionarios_celdas_iguales(celdas, arq_clave.get("celdas", {})),
+			"Arquetipo %d (%s) es valido, horario (cruz=%.1f), dentro de [1..43, 1..25] y lookup por clave coincide" % [
+				i, str(arq.get("nombre", "")), suma_cruz
+			]
+		)
+
+	_assert_true(
+		not _diccionarios_celdas_iguales(arqs_por_id[0]["celdas"], arqs_por_id[1]["celdas"])
+		and not _diccionarios_celdas_iguales(arqs_por_id[0]["celdas"], arqs_por_id[2]["celdas"])
+		and not _diccionarios_celdas_iguales(arqs_por_id[1]["celdas"], arqs_por_id[2]["celdas"]),
+		"Los 3 arquetipos tienen geometrias de celdas distintas entre si"
+	)
+
+	var ds := root.get_node_or_null("DatosSimulacion")
+	_assert_true(ds != null, "DatosSimulacion disponible para pruebas de Vista 2")
+	if ds == null:
+		return
+
+	# Guardar estado previo de DatosSimulacion para restaurar al finalizar
+	var prev_celdas: Dictionary = ds.celdas_asfalto.duplicate()
+	var prev_meta: Vector2i = ds.celda_meta
+	var prev_tiene_meta: bool = ds.tiene_meta
+	var prev_cps: Array[Vector2i] = ds.ruta_checkpoints.duplicate()
+	var prev_eje: Array[Vector2i] = ds.eje_central.duplicate()
+	var prev_radios: Array[float] = ds.radios_eje.duplicate()
+	var prev_rot: float = ds.rotacion_salida
+	var prev_ancho: float = ds.ancho_pista
+
+	ds.limpiar_pista()
+
+	var escena := load(RUTA_CREADOR) as PackedScene
+	_assert_true(escena != null, "creador_mapa.tscn carga correctamente")
+	if escena != null:
+		var vp := SubViewport.new()
+		vp.size = Vector2i(1280, 720)
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		root.add_child(vp)
+
+		var vista := escena.instantiate() as Control
+		vp.add_child(vista)
+		await _esperar_process_frames(3)
+
+		_assert_true(
+			vista.theme != null and vista.theme.resource_path == RUTA_TEMA_TELEMETRIA,
+			"creador_mapa.tscn usa tema_telemetria.tres"
+		)
+
+		var todos_botones_animados := true
+		for nodo in _obtener_todos_nodos(vista):
+			if nodo is Button and not (nodo is OptionButton):
+				if not (nodo is BotonAnimado):
+					todos_botones_animados = false
+					break
+		_assert_true(todos_botones_animados, "Todos los Button de creador_mapa.tscn (incluidos arquetipos) usan BotonAnimado")
+
+		var editor := vista.get("editor_pista") as Node2D
+		var btn_confirmar := vista.get("btn_confirmar") as Button
+		var btn_editar := vista.get("btn_editar") as Button
+		var panel_lateral := vista.get("panel_lateral") as Control
+		var btn_arq_ovalo := vista.get("btn_arq_ovalo") as Button
+		var btn_arq_enlazadas := vista.get("btn_arq_enlazadas") as Button
+		var btn_arq_horquilla := vista.get("btn_arq_horquilla") as Button
+
+		_assert_true(
+			editor != null and btn_confirmar != null and btn_editar != null and panel_lateral != null
+			and btn_arq_ovalo != null and btn_arq_enlazadas != null and btn_arq_horquilla != null,
+			"creador_mapa expone editor_pista, botones de control y los 3 botones de arquetipo"
+		)
+
+		if editor != null and btn_arq_ovalo != null and btn_arq_enlazadas != null and btn_arq_horquilla != null:
+			var botones_arq := [btn_arq_ovalo, btn_arq_enlazadas, btn_arq_horquilla]
+			for idx in range(botones_arq.size()):
+				botones_arq[idx].pressed.emit()
+				await _esperar_process_frames(2)
+				var val_ed: Dictionary = editor.obtener_validacion()
+				_assert_true(
+					editor.celdas_asfalto.size() > 0
+					and editor.tiene_meta
+					and bool(val_ed.get("valido", false))
+					and not btn_confirmar.disabled
+					and editor.tile_map.visible
+					and not editor.tile_map_final.visible
+					and ds.celdas_asfalto.is_empty()
+					and not ds.tiene_meta,
+					"Click en arquetipo %d carga circuito valido editable sin mutar DatosSimulacion" % idx
+				)
+
+			# Probar edicion antes de confirmar: pincel, borrador y meta
+			var celda_libre := Vector2i(-1, -1)
+			for x in range(2, 43):
+				for y in range(2, 25):
+					var cand := Vector2i(x, y)
+					if not editor.celdas_asfalto.has(cand):
+						celda_libre = cand
+						break
+				if celda_libre != Vector2i(-1, -1):
+					break
+
+			var antes_pincel: int = editor.celdas_asfalto.size()
+			editor.establecer_herramienta(editor.Herramienta.PINCEL)
+			editor.establecer_grosor(1)
+			editor._aplicar_herramienta_en_celda(celda_libre, false)
+			var tras_pincel: int = editor.celdas_asfalto.size()
+
+			editor.establecer_herramienta(editor.Herramienta.BORRADOR)
+			editor._aplicar_herramienta_en_celda(celda_libre, false)
+			var tras_borrador: int = editor.celdas_asfalto.size()
+
+			var otra_meta := Vector2i(-1, -1)
+			for k in editor.celdas_asfalto.keys():
+				if k is Vector2i and k != editor.celda_meta:
+					otra_meta = k
+					break
+			editor.establecer_herramienta(editor.Herramienta.META)
+			editor._colocar_meta(otra_meta)
+
+			_assert_true(
+				tras_pincel == antes_pincel + 1
+				and tras_borrador == antes_pincel
+				and editor.celda_meta == otra_meta
+				and editor.tiene_meta
+				and ds.celdas_asfalto.is_empty(),
+				"Pincel, borrador y colocacion de meta editan el arquetipo cargado antes de confirmar"
+			)
+
+			# Probar salida limpia desde vista previa al cargar otro arquetipo
+			btn_arq_ovalo.pressed.emit()
+			await _esperar_process_frames(2)
+			btn_confirmar.pressed.emit()
+			await _esperar_process_frames(2)
+			var entro_previa: bool = editor.tile_map_final.visible and not editor.tile_map.visible and not editor._interaccion_habilitada
+
+			ds.limpiar_pista()
+			btn_arq_enlazadas.pressed.emit()
+			await _esperar_process_frames(2)
+			var salio_previa: bool = (
+				editor.tile_map.visible
+				and not editor.tile_map_final.visible
+				and editor._interaccion_habilitada
+				and panel_lateral.visible
+				and not btn_editar.visible
+				and btn_confirmar.text == "Confirmar Pista"
+				and ds.celdas_asfalto.is_empty()
+			)
+			_assert_true(entro_previa and salio_previa, "Cargar arquetipo en vista previa vuelve a modo edicion sin mutar DatosSimulacion")
+
+			# Confirmar arquetipo valido persiste en DatosSimulacion
+			btn_confirmar.pressed.emit()
+			await _esperar_process_frames(2)
+			_assert_true(
+				ds.celdas_asfalto.size() == editor.celdas_asfalto.size()
+				and ds.tiene_meta
+				and ds.celda_meta == editor.celda_meta
+				and ds.ruta_checkpoints.size() >= 3,
+				"Confirmar Pista sobre arquetipo persiste pista y checkpoints en DatosSimulacion"
+			)
+
+		vp.queue_free()
+		await _esperar_process_frames(2)
+
+		# Pruebas de layout responsivo en 1280x720 y 1920x1080
+		for res in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+			var vp_res := SubViewport.new()
+			vp_res.size = res
+			vp_res.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+			root.add_child(vp_res)
+
+			var vista_res := escena.instantiate() as Control
+			vp_res.add_child(vista_res)
+			await _esperar_process_frames(3)
+			var btn_h := vista_res.get("btn_arq_horquilla") as Button
+			if btn_h != null:
+				btn_h.pressed.emit()
+				await _esperar_process_frames(2)
+
+			var problemas := _validar_geometria_vista(vista_res, res)
+			var scroll := vista_res.get_node_or_null("Layout/Cuerpo/PanelLateral/Margin/ScrollHerramientas") as ScrollContainer
+			var sin_overflow := false
+			var vbar_max := -1.0
+			var scroll_h := -1.0
+			if scroll != null:
+				var vbar := scroll.get_v_scroll_bar()
+				vbar_max = vbar.max_value
+				scroll_h = scroll.size.y
+				sin_overflow = vbar_max <= scroll_h + 1.5
+
+			_assert_true(
+				problemas.is_empty() and sin_overflow,
+				"Layout creador_mapa %dx%d sin recortes, solapamientos ni overflow (vbar=%.1f <= %.1f; errs=%s)" % [
+					res.x, res.y, vbar_max, scroll_h, str(problemas)
+				]
+			)
+			vp_res.queue_free()
+			await _esperar_process_frames(2)
+
+	# Restaurar estado previo de DatosSimulacion
+	if prev_tiene_meta and not prev_celdas.is_empty():
+		ds.guardar_pista(prev_celdas, prev_meta, prev_cps, prev_rot, prev_eje, prev_radios, prev_ancho)
+	else:
+		ds.limpiar_pista()
+
+
+func _esperar_process_frames(frames: int) -> void:
+	for _i in range(frames):
+		await process_frame
+
+
+func _diccionarios_celdas_iguales(a: Dictionary, b: Dictionary) -> bool:
+	if a.size() != b.size():
+		return false
+	for k in a.keys():
+		if not b.has(k) or bool(a[k]) != bool(b[k]):
+			return false
+	return true
+
+
+func _calcular_suma_cruz_horaria(ciclo: Array) -> float:
+	if ciclo.size() < 3:
+		return 0.0
+	var cx := 0.0
+	var cy := 0.0
+	for p in ciclo:
+		cx += float(p.x)
+		cy += float(p.y)
+	cx /= float(ciclo.size())
+	cy /= float(ciclo.size())
+
+	var suma := 0.0
+	for i in range(ciclo.size()):
+		var a: Vector2i = ciclo[i]
+		var b: Vector2i = ciclo[(i + 1) % ciclo.size()]
+		var ax := float(a.x) - cx
+		var ay := float(a.y) - cy
+		var bx := float(b.x) - cx
+		var by := float(b.y) - cy
+		suma += ax * by - ay * bx
+	return suma
+
+
+func _validar_geometria_vista(raiz: Control, res: Vector2i) -> Array[String]:
+	var errores: Array[String] = []
+	var rect_vp := Rect2(Vector2(-1.0, -1.0), Vector2(res) + Vector2(2.0, 2.0))
+
+	var todos := _obtener_todos_nodos(raiz)
+	for nodo in todos:
+		if not (nodo is Control):
+			continue
+		var ctrl := nodo as Control
+		if not ctrl.is_visible_in_tree():
+			continue
+		if ctrl is ScrollBar:
+			continue
+		var r := ctrl.get_global_rect()
+		if r.size.x < 0.0 or r.size.y < 0.0 or not rect_vp.encloses(r):
+			errores.append("Fuera de viewport: %s (%s)" % [ctrl.name, str(r)])
+
+	for nodo in todos:
+		if nodo is Control and (nodo as Control).is_visible_in_tree():
+			var hijos_visibles: Array[Control] = []
+			for ch in nodo.get_children():
+				if ch is Control and (ch as Control).is_visible_in_tree():
+					if ch.name == "Fondo" or ch is ScrollBar:
+						continue
+					hijos_visibles.append(ch as Control)
+			for i in range(hijos_visibles.size()):
+				for j in range(i + 1, hijos_visibles.size()):
+					var r1 := hijos_visibles[i].get_global_rect()
+					var r2 := hijos_visibles[j].get_global_rect()
+					var inter := r1.intersection(r2)
+					if inter.size.x > 1.0 and inter.size.y > 1.0:
+						errores.append("Solapamiento %s vs %s (%s)" % [
+							hijos_visibles[i].name, hijos_visibles[j].name, str(inter.size)
+						])
+	return errores
+
+
+func _obtener_todos_nodos(raiz: Node) -> Array[Node]:
+	var res: Array[Node] = [raiz]
+	for ch in raiz.get_children():
+		res.append_array(_obtener_todos_nodos(ch))
+	return res
