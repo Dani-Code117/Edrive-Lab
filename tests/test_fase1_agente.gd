@@ -1,8 +1,8 @@
 extends SceneTree
 
 ## Pruebas automatizadas Fase 1: VehiculoAgente, sensores RayCast2D,
-## físicas normalizadas, colisión con muros, anti-atasco (4.0s),
-## checkpoints secuenciales y sprites/capas del proyecto.
+## físicas normalizadas, colisión con muros, anti-atasco (4.0s script / 8.0s escena),
+## checkpoints secuenciales, sprites/capas, modo piloto humano (R3) y estela telemétrica (R4).
 
 const RUTA_VEHICULO := "res://Assets/Escenas/Componentes/vehiculo_agente.tscn"
 const RUTA_CHECKPOINT := "res://Assets/Escenas/Componentes/checkpoint.tscn"
@@ -69,9 +69,25 @@ func _run_all() -> void:
 	await _test_f_checkpoints_y_vueltas_secuenciales()
 	await _test_g_vehiculos_no_colisionan_entre_si()
 	await _test_h_resistencia_nan_y_no_finitos()
+	await _test_i_modo_piloto_humano()
+	await _test_j_estela_telemetrica()
 
+	_liberar_teclas_prueba()
 	print("=== Resumen Fase 1: %d verificaciones, %d fallos ===" % [_total_checks, _failures])
 	quit(0 if _failures == 0 else 1)
+
+
+func _simular_tecla(keycode: Key, pressed: bool) -> void:
+	var ev := InputEventKey.new()
+	ev.keycode = keycode
+	ev.physical_keycode = keycode
+	ev.pressed = pressed
+	Input.parse_input_event(ev)
+
+
+func _liberar_teclas_prueba() -> void:
+	for kc: Key in [KEY_W, KEY_S, KEY_A, KEY_D, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
+		_simular_tecla(kc, false)
 
 
 func _test_a_capas_escenas_y_sprites() -> void:
@@ -115,6 +131,14 @@ func _test_a_capas_escenas_y_sprites() -> void:
 	var mundo := Node2D.new()
 	root.add_child(mundo)
 
+	var car_script := VehiculoAgente.new()
+	_assert_true(
+		is_equal_approx(car_script.longitud_rayo, VehiculoAgente.LONGITUD_RAYO)
+		and is_equal_approx(car_script.tiempo_max_sin_checkpoint, 4.0),
+		"Defaults de script VehiculoAgente.new(): longitud_rayo=%.0f, tiempo_max_sin_checkpoint=4.0" % VehiculoAgente.LONGITUD_RAYO
+	)
+	car_script.free()
+
 	var escena_car := load(RUTA_VEHICULO) as PackedScene
 	var car := escena_car.instantiate() as VehiculoAgente
 	mundo.add_child(car)
@@ -122,7 +146,8 @@ func _test_a_capas_escenas_y_sprites() -> void:
 
 	_assert_true(car.collision_layer == 2, "VehiculoAgente collision_layer == 2")
 	_assert_true(car.collision_mask == 1, "VehiculoAgente collision_mask == 1")
-	_assert_true(is_equal_approx(car.tiempo_max_sin_checkpoint, 4.0), "tiempo_max_sin_checkpoint == 4.0")
+	_assert_true(is_equal_approx(car.longitud_rayo, 300.0), "Escena vehiculo_agente.tscn longitud_rayo == 300.0")
+	_assert_true(is_equal_approx(car.tiempo_max_sin_checkpoint, 8.0), "Escena vehiculo_agente.tscn tiempo_max_sin_checkpoint == 8.0")
 	_assert_true(
 		car.sprite.texture != null and car.sprite.texture.get_size() == Vector2(24, 14),
 		"SpriteCoche carga textura 24x14"
@@ -143,16 +168,17 @@ func _test_a_capas_escenas_y_sprites() -> void:
 
 	_assert_true(car._rayos.size() == 14, "VehiculoAgente tiene exactamente 14 RayCast2D")
 	var angulos_esperados: Array[float] = [-90.0, -60.0, -40.0, -25.0, -12.0, 0.0, 12.0, 25.0, 40.0, 60.0, 90.0, -135.0, 180.0, 135.0]
+	var long_esperada := car.longitud_rayo
 	var rayos_ok := car._rayos.size() == 14
 	if rayos_ok:
 		for i in range(14):
 			var rayo := car._rayos[i]
 			var diff_ang := absf(angle_difference(rayo.target_position.angle(), deg_to_rad(angulos_esperados[i])))
-			var diff_len := absf(rayo.target_position.length() - VehiculoAgente.LONGITUD_RAYO)
+			var diff_len := absf(rayo.target_position.length() - long_esperada)
 			if not rayo.enabled or rayo.collision_mask != 1 or rayo.collide_with_areas or not rayo.collide_with_bodies or diff_ang >= 0.01 or diff_len >= 0.1:
 				rayos_ok = false
 				break
-	_assert_true(rayos_ok, "14 RayCast2D (11 frontales + 3 traseros, %.0fpx, mask=1, bodies=true, areas=false)" % VehiculoAgente.LONGITUD_RAYO)
+	_assert_true(rayos_ok, "14 RayCast2D (11 frontales + 3 traseros, %.0fpx, mask=1, bodies=true, areas=false)" % long_esperada)
 
 	var escena_cp := load(RUTA_CHECKPOINT) as PackedScene
 	var cp := escena_cp.instantiate() as CheckpointArea
@@ -185,7 +211,8 @@ func _test_b_lectura_normalizada_sensores() -> void:
 	car.cerebro = MockCerebro.new(0.0, 0.0)
 	await _esperar_fisicas(2)
 
-	var esperado_30px := 30.0 / VehiculoAgente.LONGITUD_RAYO
+	var dist_rayo := car.longitud_rayo
+	var esperado_30px := 30.0 / dist_rayo
 	_assert_true(
 		absf(car.lecturas_sensores[5] - esperado_30px) <= 0.02,
 		"Sensor frontal detecta muro a 30px -> ~%.3f (obtenido: %.3f)" % [esperado_30px, car.lecturas_sensores[5]]
@@ -202,7 +229,7 @@ func _test_b_lectura_normalizada_sensores() -> void:
 		"Sensor frontal cercano (5px) retorna valor proximo a 0.0 (obtenido: %.3f)" % car.lecturas_sensores[5]
 	)
 
-	muro.position = Vector2(200, 0) # Fuera de rango (190px > 160px)
+	muro.position = Vector2(dist_rayo + 50.0, 0) # Fuera de rango (dist_rayo + 40px > dist_rayo)
 	await _esperar_fisicas(2)
 	_assert_true(
 		is_equal_approx(car.lecturas_sensores[5], 1.0),
@@ -320,7 +347,7 @@ func _test_d_deteccion_choque_muro() -> void:
 
 
 func _test_e_temporizador_anti_atascos() -> void:
-	print("--- Test (e): Temporizador anti-atascos (4.0s sin checkpoint) ---")
+	print("--- Test (e): Temporizador anti-atascos (tiempo_max_sin_checkpoint) ---")
 	var mundo := Node2D.new()
 	root.add_child(mundo)
 
@@ -335,17 +362,18 @@ func _test_e_temporizador_anti_atascos() -> void:
 			estado_atascado["recibida"] = true
 	)
 
+	var max_sin_cp := car.tiempo_max_sin_checkpoint
 	var tps := Engine.physics_ticks_per_second
-	var frames_antes := int(floor(3.8 * tps))
-	var frames_despues := int(ceil(4.1 * tps)) - frames_antes
+	var frames_antes := int(floor((max_sin_cp - 0.2) * tps))
+	var frames_despues := int(ceil((max_sin_cp + 0.15) * tps)) - frames_antes
 
 	await _esperar_fisicas(frames_antes)
-	_assert_true(not car.esta_chocado, "A los 3.8s aun no activa anti-atasco")
+	_assert_true(not car.esta_chocado, "A los %.1fs aun no activa anti-atasco" % (max_sin_cp - 0.2))
 
 	await _esperar_fisicas(frames_despues)
 	_assert_true(
 		car.esta_chocado and car.motivo_choque == "Atascado" and estado_atascado["recibida"],
-		"Tras superar 4.0s sin checkpoint activa motivo='Atascado' y senal chocado"
+		"Tras superar %.1fs sin checkpoint activa motivo='Atascado' y senal chocado" % max_sin_cp
 	)
 
 	mundo.queue_free()
@@ -591,11 +619,12 @@ func _test_h_resistencia_nan_y_no_finitos() -> void:
 		"Test (h4): _physics_process(NAN/-1.0) no envenena tiempo_sin_checkpoint"
 	)
 
-	for _i in range(250):
+	var pasos := int(ceil((car.tiempo_max_sin_checkpoint + 0.2) * 60.0))
+	for _i in range(pasos):
 		car._physics_process(1.0 / 60.0)
 	_assert_true(
 		car.esta_chocado and car.motivo_choque == "Atascado",
-		"Test (h4): tras _physics_process(NAN/-1.0), 250 pasos de 1/60s activan anti-atasco"
+		"Test (h4): tras _physics_process(NAN/-1.0), %d pasos de 1/60s activan anti-atasco" % pasos
 	)
 
 	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
@@ -641,6 +670,218 @@ func _test_h_resistencia_nan_y_no_finitos() -> void:
 		"Test (h5): con tiempo_max_sin_checkpoint=NAN activa motivo='Atascado' al superar 4.0s"
 	)
 	car.tiempo_max_sin_checkpoint = 4.0
+
+	mundo.queue_free()
+	await _esperar_fisicas(1)
+
+
+func _test_i_modo_piloto_humano() -> void:
+	print("--- Test (i): Modo Piloto Humano (R3: sync, WASD/Flechas, cancelacion, entradas y fisicas) ---")
+	_liberar_teclas_prueba()
+
+	var mundo := Node2D.new()
+	root.add_child(mundo)
+
+	var car := (load(RUTA_VEHICULO) as PackedScene).instantiate() as VehiculoAgente
+	mundo.add_child(car)
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
+
+	# 1. Sincronizacion bidireccional es_humano <-> control_manual y configurar() estricto
+	car.es_humano = true
+	var sync_a: bool = car.es_humano and car.control_manual
+	car.control_manual = false
+	var sync_b: bool = (not car.es_humano) and (not car.control_manual)
+	car.configurar({"es_humano": true})
+	var cfg_a: bool = car.es_humano and car.control_manual
+	car.configurar({"control_manual": false})
+	var cfg_b: bool = (not car.es_humano) and (not car.control_manual)
+	car.configurar({"es_humano": "false"})
+	var cfg_str_rechazada: bool = (not car.es_humano) and (not car.control_manual)
+	_assert_true(
+		sync_a and sync_b and cfg_a and cfg_b and cfg_str_rechazada,
+		"es_humano y control_manual sincronizan bidireccionalmente y configurar() rechaza string 'false'"
+	)
+
+	# 2. WASD y Flechas + cancelacion opuesta simetrica
+	car.configurar({"es_humano": true, "velocidad_maxima": 1.0, "aceleracion": 1.0, "frenado": 1.0, "control": 0.8, "agarre": 1.0})
+	car.cerebro = null
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
+
+	_simular_tecla(KEY_W, true)
+	await _esperar_fisicas(10)
+	var w_ok: bool = is_equal_approx(car.ultima_aceleracion_ia, 1.0) and car.velocidad_actual > 10.0 and car.global_position.x > 1.0
+	_simular_tecla(KEY_W, false)
+
+	_simular_tecla(KEY_S, true)
+	await _esperar_fisicas(25)
+	var s_ok: bool = is_equal_approx(car.ultima_aceleracion_ia, -1.0) and car.velocidad_actual < -5.0
+	_simular_tecla(KEY_S, false)
+
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
+	_simular_tecla(KEY_UP, true)
+	_simular_tecla(KEY_RIGHT, true)
+	await _esperar_fisicas(10)
+	var flechas_der_ok: bool = is_equal_approx(car.ultima_aceleracion_ia, 1.0) and is_equal_approx(car.ultimo_giro_ia, 1.0) and car.rotation > 0.05
+	_simular_tecla(KEY_UP, false)
+	_simular_tecla(KEY_RIGHT, false)
+
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
+	_simular_tecla(KEY_DOWN, true)
+	_simular_tecla(KEY_LEFT, true)
+	await _esperar_fisicas(10)
+	var flechas_izq_ok: bool = is_equal_approx(car.ultima_aceleracion_ia, -1.0) and is_equal_approx(car.ultimo_giro_ia, -1.0) and car.rotation < -0.05
+	_simular_tecla(KEY_DOWN, false)
+	_simular_tecla(KEY_LEFT, false)
+
+	_assert_true(w_ok and s_ok and flechas_der_ok and flechas_izq_ok, "Piloto Humano responde a W/S y Flechas (aceleracion, reversa, giro izq/der)")
+
+	# Cancelacion simetrica de teclas opuestas
+	_simular_tecla(KEY_W, true)
+	_simular_tecla(KEY_S, true)
+	_simular_tecla(KEY_A, true)
+	_simular_tecla(KEY_D, true)
+	await _esperar_fisicas(3)
+	var cancel_wasd := is_equal_approx(car.ultima_aceleracion_ia, 0.0) and is_equal_approx(car.ultimo_giro_ia, 0.0)
+	_liberar_teclas_prueba()
+
+	_simular_tecla(KEY_UP, true)
+	_simular_tecla(KEY_DOWN, true)
+	_simular_tecla(KEY_LEFT, true)
+	_simular_tecla(KEY_RIGHT, true)
+	await _esperar_fisicas(3)
+	var cancel_flechas := is_equal_approx(car.ultima_aceleracion_ia, 0.0) and is_equal_approx(car.ultimo_giro_ia, 0.0)
+	_liberar_teclas_prueba()
+	_assert_true(cancel_wasd and cancel_flechas, "Teclas opuestas simultaneas (W+S, A+D, Arriba+Abajo, Izq+Der) cancelan a 0.0")
+
+	# 3. ultimas_entradas_ia (18 floats) en Humano y en IA
+	car.posiciones_checkpoints = PackedVector2Array([Vector2(150, 0)])
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 1)
+	_simular_tecla(KEY_W, true)
+	await _esperar_fisicas(6)
+	var entradas_hum := car.ultimas_entradas_ia.duplicate()
+	var ent_hum_ok := entradas_hum.size() == 18
+	if ent_hum_ok:
+		for v in entradas_hum:
+			if not is_finite(v) or v < 0.0 or v > 1.0:
+				ent_hum_ok = false
+				break
+	_liberar_teclas_prueba()
+	_assert_true(
+		ent_hum_ok and entradas_hum[16] > 0.51 and entradas_hum[17] > 0.90,
+		"ultimas_entradas_ia (18 floats finitos en [0,1]) se actualiza cada tick en Piloto Humano"
+	)
+
+	car.es_humano = false
+	car.cerebro = MockCerebro.new(0.6, -0.3)
+	await _esperar_fisicas(3)
+	var ent_ia_ok := car.ultimas_entradas_ia.size() == 18 and is_equal_approx(car.ultimas_entradas_ia[17], (0.6 + 1.0) * 0.5)
+	_assert_true(ent_ia_ok, "ultimas_entradas_ia tambien se mantiene sincronizada en modo IA")
+
+	# 4. Misma fisica: colision con muro y checkpoints en modo humano
+	car.es_humano = true
+	car.cerebro = null
+	var escena_cp := load(RUTA_CHECKPOINT) as PackedScene
+	var cp0 := escena_cp.instantiate() as CheckpointArea
+	cp0.id_checkpoint = 0
+	cp0.position = Vector2(24, 0)
+	mundo.add_child(cp0)
+	var muro := _crear_muro(Vector2(68, 0), Vector2(20, 200))
+	mundo.add_child(muro)
+
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 1)
+	_simular_tecla(KEY_W, true)
+	for _i in range(90):
+		await physics_frame
+		if car.esta_chocado:
+			break
+	_liberar_teclas_prueba()
+	_assert_true(
+		car.checkpoints_cruzados >= 1 and car.esta_chocado and car.motivo_choque == "Chocado",
+		"Piloto Humano comparte checkpoints secuenciales y colision contra muros (cps=%d, motivo='%s')" % [car.checkpoints_cruzados, car.motivo_choque]
+	)
+
+	# Anti-atasco compartido en modo humano
+	car.tiempo_max_sin_checkpoint = 0.25
+	car.reiniciar_estado(Vector2(-300, 0), 0.0, 2)
+	await _esperar_fisicas(25)
+	_assert_true(
+		car.esta_chocado and car.motivo_choque == "Atascado",
+		"Piloto Humano comparte temporizador anti-atasco (motivo='%s')" % car.motivo_choque
+	)
+
+	mundo.queue_free()
+	await _esperar_fisicas(1)
+
+
+func _test_j_estela_telemetrica() -> void:
+	print("--- Test (j): EstelaTelemetrica (R4: nodo, capas, visibilidad, longitud, 3 colores, reinicio) ---")
+	_liberar_teclas_prueba()
+
+	var mundo := Node2D.new()
+	root.add_child(mundo)
+
+	var car := (load(RUTA_VEHICULO) as PackedScene).instantiate() as VehiculoAgente
+	mundo.add_child(car)
+	await _esperar_fisicas(1)
+
+	var estela := car.get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+	_assert_true(
+		estela != null and estela.top_level and estela.z_index == 1 and not estela.z_as_relative,
+		"EstelaTelemetrica existe en vehiculo_agente.tscn con top_level=true, z_index=1, z_as_relative=false"
+	)
+
+	# Clamp de longitud_maxima_estela [10, 600] y recorte de puntos
+	car.longitud_maxima_estela = 3
+	var clamp_min_ok: bool = car.longitud_maxima_estela == 10 and estela.longitud_maxima_estela == 10
+	car.longitud_maxima_estela = 1500
+	var clamp_max_ok: bool = car.longitud_maxima_estela == 600 and estela.longitud_maxima_estela == 600
+	car.longitud_maxima_estela = 12
+
+	car.configurar({"es_humano": false, "velocidad_maxima": 1.0, "aceleracion": 1.0, "frenado": 1.0, "agarre": 1.0})
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
+	car.cerebro = MockCerebro.new(1.0, 0.0)
+	await _esperar_fisicas(20)
+	var recorte_ok: bool = estela.obtener_puntos().size() == 12 and estela.obtener_colores().size() == 12
+	_assert_true(clamp_min_ok and clamp_max_ok and recorte_ok, "longitud_maxima_estela clampa [10, 600] y recorta buffer")
+
+	# Visibilidad sincronizada incluso cuando el vehiculo esta chocado
+	car._marcar_chocado("Chocado")
+	car.mostrar_estela = false
+	var vis_off_ok: bool = not estela.visible
+	car.mostrar_estela = true
+	var vis_on_ok: bool = estela.visible
+	_assert_true(vis_off_ok and vis_on_ok, "mostrar_estela sincroniza EstelaTelemetrica.visible incluso en coche chocado")
+
+	# 3 colores longitudinales: Verde (acel > 0.05), Amarillo/Naranja (freno/coasting), Azul/Cian (reversa)
+	car.longitud_maxima_estela = 120
+	car.reiniciar_estado(Vector2.ZERO, 0.0, 0)
+	_assert_true(
+		estela.obtener_puntos().is_empty() and estela.obtener_colores().is_empty(),
+		"reiniciar_estado() limpia los puntos y colores de EstelaTelemetrica"
+	)
+
+	car.cerebro = MockCerebro.new(1.0, 0.0) # Acelerando -> Verde
+	await _esperar_fisicas(15)
+	car.cerebro = MockCerebro.new(-1.0, 0.0) # Frenando en avance (vel > 5) y luego reversa (vel <= 5)
+	await _esperar_fisicas(25)
+	car.cerebro = MockCerebro.new(0.0, 0.0) # Sin acelerar -> Amarillo/Naranja
+	await _esperar_fisicas(3)
+
+	var tiene_verde := false
+	var tiene_amarillo := false
+	var tiene_azul := false
+	for col: Color in estela.obtener_colores():
+		if col.b > 0.50 and col.b > col.r + 0.15 and col.b >= col.g * 0.72:
+			tiene_azul = true
+		elif col.g > 0.45 and col.g > col.r + 0.15 and col.g > col.b + 0.15:
+			tiene_verde = true
+		elif col.r > 0.55 and col.g > 0.30 and col.b < 0.45 and col.r >= col.g - 0.10:
+			tiene_amarillo = true
+
+	_assert_true(
+		tiene_verde and tiene_amarillo and tiene_azul,
+		"EstelaTelemetrica registra verde (aceleracion), amarillo/naranja (freno/inercia) y azul/cian (reversa)"
+	)
 
 	mundo.queue_free()
 	await _esperar_fisicas(1)

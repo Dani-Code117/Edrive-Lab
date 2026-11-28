@@ -1,9 +1,9 @@
 extends SceneTree
 
-## Pruebas automatizadas Fase 4: VisorRedNeuronal (7->6->2), VistaCarreraUI
-## (reconstruccion de pista y muros Layer 1, TileMapLayer, checkpoints dinamicos,
-## 3 vehiculos hacia CP0, aislamiento sin DatosSimulacion, telemetria, rayos,
-## velocidades 1x/2x/4x, reinicio, navegacion, auditoria multi-resolucion y flujo E2E).
+## Pruebas automatizadas Fase 4: VisorRedNeuronal (18->8->2 y Control Manual),
+## VistaCarreraUI (reconstruccion de pista y muros Layer 1, TileMapLayer,
+## checkpoints dinamicos, 3 vehiculos hacia CP0, aislamiento sin DatosSimulacion,
+## telemetria, rayos, estela ON/OFF, piloto humano, 1x/2x/4x, reinicio y E2E).
 
 const RUTA_MENU := "res://Assets/Escenas/Vistas/menu_principal.tscn"
 const RUTA_CREADOR := "res://Assets/Escenas/Vistas/creador_mapa.tscn"
@@ -95,14 +95,30 @@ func _run_all() -> void:
 	await _test_e_layout_multiresolucion(ds)
 	await _test_f_flujo_completo_e2e_y_presets(ds)
 	await _test_g_invarianza_colisiones_y_seguridad(ds)
+	await _test_h_piloto_humano_vista4(ds)
+	await _test_i_estela_telemetrica_vista4(ds)
 
 	# Restaurar estado limpio
+	_liberar_teclas_prueba()
 	Engine.time_scale = 1.0
 	ds.limpiar_pista()
 	ds.config_vehiculos = cfg_orig
 
 	print("=== Resumen Fase 4: %d verificaciones, %d fallos ===" % [_total_checks, _failures])
 	quit(0 if _failures == 0 else 1)
+
+
+func _simular_tecla(keycode: Key, pressed: bool) -> void:
+	var ev := InputEventKey.new()
+	ev.keycode = keycode
+	ev.physical_keycode = keycode
+	ev.pressed = pressed
+	Input.parse_input_event(ev)
+
+
+func _liberar_teclas_prueba() -> void:
+	for kc: Key in [KEY_W, KEY_S, KEY_A, KEY_D, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
+		_simular_tecla(kc, false)
 
 
 func _test_a_visor_red_neuronal() -> void:
@@ -175,6 +191,38 @@ func _test_a_visor_red_neuronal() -> void:
 		and is_equal_approx(snap_nan["pesos_salida"][1 * 8 + 4], -1.85)
 		and is_equal_approx(snap_nan["entradas"][3], 0.8),
 		"VisorRedNeuronal sanitiza NaN/INF y conserva indexacion exacta j*18+i y k*8+j"
+	)
+
+	# Modo Control Manual (es_humano = true, cerebro = null)
+	coche.configurar({"nombre": "PilotoTest", "es_humano": true})
+	coche.cerebro = null
+	var ent_hum := PackedFloat64Array()
+	ent_hum.resize(18)
+	for i in range(18):
+		ent_hum[i] = clampf(float(i) / 17.0, 0.0, 1.0)
+	ent_hum[4] = NAN
+	coche.ultimas_entradas_ia = ent_hum
+	coche.ultima_aceleracion_ia = 0.75
+	coche.ultimo_giro_ia = -0.50
+	visor.call("actualizar_visor")
+	await _esperar_frames(2)
+
+	var snap_hum: Dictionary = visor.call("obtener_instantanea_segura")
+	var hum_finito := true
+	for v in snap_hum["entradas"]:
+		if not is_finite(v):
+			hum_finito = false
+	_assert_true(
+		snap_hum["tiene_vehiculo"] == true
+		and snap_hum["tiene_red"] == false
+		and bool(snap_hum.get("es_humano", false)) == true
+		and str(snap_hum.get("modo_texto", "")) == "Control Manual"
+		and snap_hum["entradas"].size() == 18
+		and hum_finito
+		and is_equal_approx(snap_hum["entradas"][17], 1.0)
+		and is_equal_approx(snap_hum["salidas"][0], 0.75)
+		and is_equal_approx(snap_hum["salidas"][1], -0.50),
+		"VisorRedNeuronal muestra 18 entradas en vivo, 2 comandos manuales y 'Control Manual' en modo humano"
 	)
 
 	vp.queue_free()
@@ -334,7 +382,7 @@ func _test_d_simulacion_telemetria_y_controles(ds: Node) -> void:
 	var btn_insp1: Button = cont_tarjetas.get_child(1).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
 	var btn_insp2: Button = cont_tarjetas.get_child(2).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
 	btn_insp1.pressed.emit()
-	for _f in range(90):
+	for _f in range(180):
 		await _esperar_frames(1)
 		if cam_vista.zoom.x > zoom_pista * 1.5:
 			break
@@ -343,7 +391,7 @@ func _test_d_simulacion_telemetria_y_controles(ds: Node) -> void:
 	await _esperar_frames(5)
 	var ok_insp2: bool = visor_red.get("vehiculo_objetivo") == coches[2] and int(vista.call("obtener_indice_inspeccionado")) == 2
 	btn_insp2.pressed.emit()
-	for _f in range(120):
+	for _f in range(240):
 		await _esperar_frames(1)
 		if cam_vista.zoom.x < zoom_pista * 1.2:
 			break
@@ -370,7 +418,6 @@ func _test_d_simulacion_telemetria_y_controles(ds: Node) -> void:
 	var ok_4x := is_equal_approx(Engine.time_scale, 4.0)
 	btn_vel_1x.pressed.emit()
 	var ok_1x := is_equal_approx(Engine.time_scale, 1.0)
-	btn_vel_4x.pressed.emit()
 	_assert_true(ok_2x and ok_4x and ok_1x, "Selector de velocidad actualiza Engine.time_scale (1x/2x/4x)")
 
 	# Telemetria al chocar y al reiniciar
@@ -390,7 +437,33 @@ func _test_d_simulacion_telemetria_y_controles(ds: Node) -> void:
 	)
 	_assert_true(muestra_chocado and reiniciado_ok, "Telemetria refleja Chocado y Reiniciar Carrera restaura estado a Corriendo")
 
+	# Regresion determinista: reiniciar justo al alcanzar el borde de Checkpoint_0 (fases par e impar)
+	var cps_reg: Array = vista.call("obtener_checkpoints")
+	var cp0_reg: CheckpointArea = cps_reg[0] as CheckpointArea
+	var col_cp0 := cp0_reg.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var r_cp0: float = (col_cp0.shape as CircleShape2D).radius if (col_cp0 != null and col_cp0.shape is CircleShape2D) else 26.0
+	var esc_reg: Node2D = vista.get("escenario")
+	var reg_borde_ok := cps_reg.size() >= 1
+	for intento in range(6):
+		var c0_reg := coches[0] as VehiculoAgente
+		var pos_pre_local := Vector2(cp0_reg.position.x - r_cp0 - 5.5, cp0_reg.position.y)
+		c0_reg.reiniciar_estado(esc_reg.to_global(pos_pre_local), 0.0, cps_reg.size())
+		c0_reg.velocidad_actual = 120.0
+		c0_reg.velocity = Vector2(120.0, 0.0)
+		await _esperar_fisica(1 + (intento % 3))
+		if intento >= 3:
+			await _esperar_frames(1)
+		c0_reg._marcar_chocado("Chocado")
+		btn_reiniciar.pressed.emit()
+		await _esperar_frames(2)
+		await _esperar_fisica(2)
+		if c0_reg.esta_chocado or c0_reg.checkpoints_cruzados != 0 or lbl_est0.text != "Corriendo":
+			reg_borde_ok = false
+			break
+	_assert_true(reg_borde_ok, "Regresion reinicio en borde de Checkpoint_0 no registra checkpoint fantasma (par/impar)")
+
 	# Destinos de navegacion y reset de Engine.time_scale en _exit_tree()
+	btn_vel_4x.pressed.emit()
 	_assert_true(
 		ResourceLoader.exists(vista.get("ESCENA_CONFIGURACION")) and ResourceLoader.exists(vista.get("ESCENA_CREADOR")),
 		"Escenas destino Volver a Configuracion y Editar Mapa existen"
@@ -669,6 +742,217 @@ func _test_g_invarianza_colisiones_y_seguridad(ds: Node) -> void:
 
 	vp_col.queue_free()
 	await _esperar_frames(2)
+
+
+func _test_h_piloto_humano_vista4(ds: Node) -> void:
+	print("--- Test (h): Piloto Humano en Vista 4 (HUD, cerebro=null, LblSeccionVisor, WASD y layout) ---")
+	_liberar_teclas_prueba()
+	var cfg_orig_local: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.restaurar_config_vehiculos_defecto()
+	ds.config_vehiculos[0]["es_humano"] = true
+	ds.config_vehiculos[1]["es_humano"] = false
+	ds.config_vehiculos[2]["es_humano"] = false
+
+	var circuito := _crear_circuito(3)
+	_cargar_pista_en_ds(ds, circuito)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1280, 720)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(vp)
+
+	var vista := (load(RUTA_CARRERA) as PackedScene).instantiate() as Control
+	vp.add_child(vista)
+	await _esperar_frames(4)
+
+	var coches: Array = vista.call("obtener_vehiculos")
+	var cont_tarjetas: VBoxContainer = vista.get("contenedor_tarjetas")
+	var visor_red: Control = vista.get("visor_red")
+	var lbl_sec: Label = vista.get_node_or_null("Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/LblSeccionVisor") as Label
+
+	var c0 := coches[0] as VehiculoAgente
+	var c1 := coches[1] as VehiculoAgente
+	var c2 := coches[2] as VehiculoAgente
+	var lbl_niv0: Label = cont_tarjetas.get_child(0).get_node("VBox/Margin/Col/MidRow/LblNivelIA")
+	var lbl_niv1: Label = cont_tarjetas.get_child(1).get_node("VBox/Margin/Col/MidRow/LblNivelIA")
+
+	_assert_true(
+		c0.es_humano and c0.control_manual and c0.cerebro == null
+		and not c1.es_humano and (c1.cerebro is RedNeuronal)
+		and not c2.es_humano and (c2.cerebro is RedNeuronal)
+		and lbl_niv0.text == "Piloto Humano" and lbl_niv1.text.begins_with("Nivel "),
+		"Vista 4 asigna Piloto Humano (cerebro=null) al coche humano y RedNeuronal + Nivel a las IAs"
+	)
+
+	var btn_insp0: Button = cont_tarjetas.get_child(0).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
+	var btn_insp1: Button = cont_tarjetas.get_child(1).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
+
+	var tit_inicial_ok: bool = lbl_sec != null and lbl_sec.text.contains("18") and not lbl_sec.text.contains("7")
+	btn_insp0.pressed.emit()
+	await _esperar_frames(2)
+	var tit_humano_ok: bool = lbl_sec != null and lbl_sec.text == "CONTROL MANUAL EN VIVO"
+	btn_insp1.pressed.emit()
+	await _esperar_frames(2)
+	var tit_ia_ok: bool = lbl_sec != null and lbl_sec.text == "RED NEURONAL EN VIVO (18 → 8 → 2)"
+
+	# Volver a inspeccionar coche humano y probar llamada directa establecer_vehiculo(null)
+	btn_insp0.pressed.emit()
+	await _esperar_frames(2)
+	visor_red.call("establecer_vehiculo", null)
+	await _esperar_frames(3)
+	var tit_direct_null_ok: bool = lbl_sec != null and lbl_sec.text == "RED NEURONAL EN VIVO (18 → 8 → 2)"
+	_assert_true(
+		tit_inicial_ok and tit_humano_ok and tit_ia_ok and tit_direct_null_ok,
+		"LblSeccionVisor cambia dinamicamente entre 'RED NEURONAL EN VIVO (18 → 8 → 2)' y 'CONTROL MANUAL EN VIVO'"
+	)
+
+	# Conducir coche humano inspeccionado y verificar visor en vivo
+	btn_insp1.pressed.emit()
+	await _esperar_frames(1)
+	btn_insp0.pressed.emit()
+	await _esperar_frames(2)
+	c0.reiniciar_estado(c0.global_position, c0.rotation, vista.call("obtener_checkpoints").size())
+	_simular_tecla(KEY_W, true)
+	_simular_tecla(KEY_D, true)
+	await _esperar_fisica(10)
+	await _esperar_frames(2)
+	var snap_live: Dictionary = visor_red.call("obtener_instantanea_segura")
+	_liberar_teclas_prueba()
+
+	_assert_true(
+		bool(snap_live.get("es_humano", false))
+		and str(snap_live.get("modo_texto", "")) == "Control Manual"
+		and is_equal_approx(c0.ultima_aceleracion_ia, 1.0)
+		and is_equal_approx(c0.ultimo_giro_ia, 1.0)
+		and is_equal_approx(snap_live["salidas"][0], 1.0)
+		and is_equal_approx(snap_live["salidas"][1], 1.0)
+		and snap_live["entradas"][16] > 0.52,
+		"Conduccion manual actualiza fisica, 18 entradas y comandos en VisorRedNeuronal"
+	)
+
+	var err_720 := _validar_geometria_vista(vista, Vector2i(1280, 720))
+	vp.size = Vector2i(1920, 1080)
+	await _esperar_frames(3)
+	var err_1080 := _validar_geometria_vista(vista, Vector2i(1920, 1080))
+	_assert_true(
+		err_720.is_empty() and err_1080.is_empty(),
+		"Vista 4 con Piloto Humano y BtnEstela sin solapamientos en 1280x720 (%s) y 1920x1080 (%s)" % [str(err_720), str(err_1080)]
+	)
+
+	vp.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_orig_local
+
+
+func _test_i_estela_telemetrica_vista4(ds: Node) -> void:
+	print("--- Test (i): EstelaTelemetrica y toggle BtnEstela ON/OFF en Vista 4 ---")
+	_liberar_teclas_prueba()
+	var cfg_orig_local: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.restaurar_config_vehiculos_defecto()
+	ds.config_vehiculos[0]["es_humano"] = true
+
+	var circuito := _crear_circuito(3)
+	_cargar_pista_en_ds(ds, circuito)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1280, 720)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(vp)
+
+	var vista := (load(RUTA_CARRERA) as PackedScene).instantiate() as Control
+	vp.add_child(vista)
+	await _esperar_frames(4)
+
+	var btn_estela: Button = vista.get("btn_estela")
+	var sin_controles_longitud := true
+	for nodo in _obtener_todos_nodos(vista):
+		if (nodo is Range and not (nodo is ScrollBar)) or nodo is SpinBox or nodo is LineEdit:
+			sin_controles_longitud = false
+	_assert_true(
+		btn_estela != null and btn_estela is BotonAnimado and btn_estela.toggle_mode
+		and btn_estela.button_pressed and btn_estela.text == "Estela: ON"
+		and sin_controles_longitud,
+		"BtnEstela es BotonAnimado toggle ('Estela: ON') y no hay controles extra de longitud en Vista 4"
+	)
+
+	var coches: Array = vista.call("obtener_vehiculos")
+	var estelas_ok := coches.size() == 3
+	for c_var in coches:
+		var c := c_var as VehiculoAgente
+		var est := c.get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+		if est == null or not est.top_level or est.z_index != 1 or est.z_as_relative:
+			estelas_ok = false
+	_assert_true(estelas_ok, "Los 3 vehiculos tienen EstelaTelemetrica (top_level=true, z_index=1, z_as_relative=false)")
+
+	# Acelerar (verde), frenar en avance (amarillo/naranja) y reversar (azul/cian)
+	var c0 := coches[0] as VehiculoAgente
+	(coches[1] as Node).set_physics_process(false)
+	(coches[2] as Node).set_physics_process(false)
+	c0.reiniciar_estado(c0.global_position, c0.rotation, vista.call("obtener_checkpoints").size())
+
+	_simular_tecla(KEY_W, true)
+	await _esperar_fisica(14)
+	_simular_tecla(KEY_W, false)
+	_simular_tecla(KEY_S, true)
+	await _esperar_fisica(26)
+	_liberar_teclas_prueba()
+
+	var est0 := c0.get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+	var tiene_verde := false
+	var tiene_amarillo := false
+	var tiene_azul := false
+	for col: Color in est0.obtener_colores():
+		if col.b > 0.50 and col.b > col.r + 0.15 and col.b >= col.g * 0.72:
+			tiene_azul = true
+		elif col.g > 0.45 and col.g > col.r + 0.15 and col.g > col.b + 0.15:
+			tiene_verde = true
+		elif col.r > 0.55 and col.g > 0.30 and col.b < 0.45 and col.r >= col.g - 0.10:
+			tiene_amarillo = true
+
+	_assert_true(
+		est0.obtener_puntos().size() >= 30 and tiene_verde and tiene_amarillo and tiene_azul,
+		"Estela del piloto humano registra puntos verdes, amarillo/naranja y azul/cian en Vista 4"
+	)
+
+	# Toggle BtnEstela OFF/ON incluso con coche chocado
+	c0._marcar_chocado("Chocado")
+	btn_estela.button_pressed = false
+	await _esperar_frames(2)
+	var off_ok: bool = btn_estela.text == "Estela: OFF"
+	for c_var in coches:
+		var c := c_var as VehiculoAgente
+		var est := c.get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+		if c.mostrar_estela or est.visible:
+			off_ok = false
+
+	btn_estela.button_pressed = true
+	await _esperar_frames(2)
+	var on_ok: bool = btn_estela.text == "Estela: ON"
+	for c_var in coches:
+		var c := c_var as VehiculoAgente
+		var est := c.get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+		if not c.mostrar_estela or not est.visible:
+			on_ok = false
+	_assert_true(off_ok and on_ok, "BtnEstela alterna visibilidad en todos los coches (incluidos chocados)")
+
+	# BtnReiniciar limpia estelas y conserva estado de BtnEstela
+	c0.set_physics_process(false)
+	btn_estela.button_pressed = false
+	await _esperar_frames(1)
+	var btn_reiniciar: Button = vista.get("btn_reiniciar")
+	btn_reiniciar.pressed.emit()
+	await _esperar_frames(2)
+	var limpio_ok := btn_estela.text == "Estela: OFF"
+	for c_var in coches:
+		var c := c_var as VehiculoAgente
+		var est := c.get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+		if not est.obtener_puntos().is_empty() or c.mostrar_estela or est.visible:
+			limpio_ok = false
+	_assert_true(limpio_ok, "BtnReiniciar limpia las estelas de los 3 coches y preserva el estado del toggle BtnEstela")
+
+	vp.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_orig_local
 
 
 func _validar_geometria_vista(raiz: Control, res: Vector2i) -> Array[String]:
