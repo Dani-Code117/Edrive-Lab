@@ -11,7 +11,11 @@ const ESCENA_CHECKPOINT := "res://Assets/Escenas/Componentes/checkpoint.tscn"
 const RUTA_BANDERA_META := "res://Assets/Sprites/bandera_meta.png"
 const RUTA_SPRITE_COCHE := "res://Assets/Sprites/coche_base.png"
 const FACTOR_ZOOM_INSPECCION: float = 3.0
+const FACTOR_ZOOM_CARRERA_HUMANA: float = 3.8
+const LOOK_AHEAD_BASE: float = 22.0
+const LOOK_AHEAD_VELOCIDAD: float = 28.0
 const VEL_SUAVIZADO_CAMARA: float = 10.0
+const VEL_SUAVIZADO_ROTACION_CAMARA: float = 8.0
 
 @onready var btn_vel_1x: Button = $Layout/BarraSuperior/Margin/HBox/ControlesVelocidad/BtnVel1x
 @onready var btn_vel_2x: Button = $Layout/BarraSuperior/Margin/HBox/ControlesVelocidad/BtnVel2x
@@ -68,6 +72,7 @@ func _ready() -> void:
 		sub_viewport_pista.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if camara_pista != null:
 		camara_pista.enabled = true
+		camara_pista.ignore_rotation = false
 		camara_pista.make_current()
 	if escenario != null:
 		escenario.position = Vector2.ZERO
@@ -519,6 +524,7 @@ func _on_reiniciar_pressed() -> void:
 			if coche.cerebro is RedNeuronal:
 				(coche.cerebro as RedNeuronal)._reiniciar_instantaneas()
 	_actualizar_telemetria_hud()
+	_actualizar_camara(0.0, true)
 	if visor_red != null:
 		visor_red.actualizar_visor()
 
@@ -563,26 +569,75 @@ func _ajustar_escenario() -> void:
 	_actualizar_camara(0.0, true)
 
 
+func _obtener_indice_vehiculo_humano() -> int:
+	for i in range(_vehiculos.size()):
+		var coche := _vehiculos[i]
+		if coche != null and is_instance_valid(coche) and (coche.es_humano or coche.control_manual):
+			return i
+	return -1
+
+
+func esta_en_camara_carreras() -> bool:
+	if _indice_inspeccionado >= 0:
+		if _indice_inspeccionado < _vehiculos.size():
+			var coche_sel := _vehiculos[_indice_inspeccionado]
+			return coche_sel != null and is_instance_valid(coche_sel) and (coche_sel.es_humano or coche_sel.control_manual)
+		return false
+	return _obtener_indice_vehiculo_humano() >= 0
+
+
+func _calcular_objetivo_camara_carreras(coche: VehiculoAgente) -> Dictionary:
+	var dir_frente := Vector2.RIGHT.rotated(coche.rotation)
+	var factor_vel := clampf(coche.velocidad_actual / maxf(coche.vel_max, 1.0), 0.0, 1.0)
+	var look_ahead := LOOK_AHEAD_BASE + LOOK_AHEAD_VELOCIDAD * factor_vel
+	var zoom_carr := _cam_zoom_completo * FACTOR_ZOOM_CARRERA_HUMANA
+	return {
+		"pos": coche.position + dir_frente * look_ahead,
+		"zoom": Vector2(zoom_carr, zoom_carr),
+		"rot": coche.rotation + PI * 0.5,
+	}
+
+
 func _actualizar_camara(delta: float, inmediato: bool = false) -> void:
 	if camara_pista == null:
 		return
 	camara_pista.enabled = true
+	camara_pista.ignore_rotation = false
 
 	var objetivo_pos := _cam_pos_completa
 	var objetivo_zoom := Vector2(_cam_zoom_completo, _cam_zoom_completo)
+	var objetivo_rot := 0.0
 
 	if _indice_inspeccionado >= 0:
 		if _indice_inspeccionado < _vehiculos.size() and is_instance_valid(_vehiculos[_indice_inspeccionado]):
-			objetivo_pos = _vehiculos[_indice_inspeccionado].position
-			var zoom_insp := _cam_zoom_completo * FACTOR_ZOOM_INSPECCION
-			objetivo_zoom = Vector2(zoom_insp, zoom_insp)
+			var coche_insp := _vehiculos[_indice_inspeccionado]
+			if coche_insp.es_humano or coche_insp.control_manual:
+				var obj_carr := _calcular_objetivo_camara_carreras(coche_insp)
+				objetivo_pos = obj_carr["pos"]
+				objetivo_zoom = obj_carr["zoom"]
+				objetivo_rot = obj_carr["rot"]
+			else:
+				objetivo_pos = coche_insp.position
+				var zoom_insp := _cam_zoom_completo * FACTOR_ZOOM_INSPECCION
+				objetivo_zoom = Vector2(zoom_insp, zoom_insp)
+				objetivo_rot = 0.0
 		else:
 			_seleccionar_vehiculo_inspeccion(-1)
+	else:
+		var idx_humano := _obtener_indice_vehiculo_humano()
+		if idx_humano >= 0:
+			var obj_carr := _calcular_objetivo_camara_carreras(_vehiculos[idx_humano])
+			objetivo_pos = obj_carr["pos"]
+			objetivo_zoom = obj_carr["zoom"]
+			objetivo_rot = obj_carr["rot"]
 
 	if inmediato:
 		camara_pista.position = objetivo_pos
 		camara_pista.zoom = objetivo_zoom
+		camara_pista.rotation = objetivo_rot
 	else:
 		var t := clampf(delta * VEL_SUAVIZADO_CAMARA, 0.0, 1.0)
+		var t_rot := clampf(delta * VEL_SUAVIZADO_ROTACION_CAMARA, 0.0, 1.0)
 		camara_pista.position = camara_pista.position.lerp(objetivo_pos, t)
 		camara_pista.zoom = camara_pista.zoom.lerp(objetivo_zoom, t)
+		camara_pista.rotation = lerp_angle(camara_pista.rotation, objetivo_rot, t_rot)

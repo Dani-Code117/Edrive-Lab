@@ -98,6 +98,7 @@ func _run_all() -> void:
 	await _test_h_piloto_humano_vista4(ds)
 	await _test_i_estela_telemetrica_vista4(ds)
 	await _test_j_sin_secuestro_foco_flechas(ds)
+	await _test_k_camara_carreras_piloto_humano(ds)
 
 	# Restaurar estado limpio
 	_liberar_teclas_prueba()
@@ -1049,6 +1050,76 @@ func _test_j_sin_secuestro_foco_flechas(ds: Node) -> void:
 		"Flechas (KEY_UP + KEY_LEFT) tras clicks conducen al piloto humano (acel=%.2f, giro=%.2f) con foco GUI en null" % [
 			acel_leida, giro_leido
 		]
+	)
+
+	vp.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_orig_local
+
+
+func _test_k_camara_carreras_piloto_humano(ds: Node) -> void:
+	print("--- Test (k): Camara de carreras rotatoria con look-ahead para Piloto Humano ---")
+	_liberar_teclas_prueba()
+	var cfg_orig_local: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.restaurar_config_vehiculos_defecto()
+	ds.establecer_humano_exclusivo(1, true)
+
+	var circuito := _crear_circuito(3)
+	_cargar_pista_en_ds(ds, circuito)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1280, 720)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(vp)
+
+	var vista := (load(RUTA_CARRERA) as PackedScene).instantiate() as Control
+	vp.add_child(vista)
+	await _esperar_frames(4)
+
+	var cam: Camera2D = vista.get("camara_pista")
+	var coches: Array = vista.call("obtener_vehiculos")
+	var c_hum := coches[1] as VehiculoAgente
+	(coches[0] as Node).set_physics_process(false)
+	(coches[2] as Node).set_physics_process(false)
+
+	var rot_esperada := c_hum.rotation + PI * 0.5
+	var dir_frente := Vector2.RIGHT.rotated(c_hum.rotation)
+	var delta_cam := cam.position - c_hum.position
+	var look_ahead_proy := delta_cam.dot(dir_frente)
+	var zoom_completo: float = float(vista.get("_cam_zoom_completo"))
+
+	_assert_true(
+		cam != null
+		and not cam.ignore_rotation
+		and bool(vista.call("esta_en_camara_carreras"))
+		and absf(angle_difference(cam.rotation, rot_esperada)) < 0.08
+		and cam.zoom.x > zoom_completo * 3.0
+		and look_ahead_proy > 15.0,
+		"Piloto Humano activa camara rotatoria de carreras (rot=%.2f vs %.2f, zoom=%.2f, look_ahead=%.1f)" % [
+			cam.rotation, rot_esperada, cam.zoom.x, look_ahead_proy
+		]
+	)
+
+	# Al girar el coche humano, la camara acompana la rotacion
+	c_hum.rotation += 0.65
+	vista.call("_actualizar_camara", 0.0, true)
+	var rot_esperada_giro := c_hum.rotation + PI * 0.5
+	_assert_true(
+		absf(angle_difference(cam.rotation, rot_esperada_giro)) < 0.05,
+		"Camara rotatoria actualiza su angulo al girar el vehiculo humano"
+	)
+
+	# Al inspeccionar un coche IA, vuelve a rotacion 0 y al desactivar retorna a camara de carreras humana
+	vista.call("_seleccionar_vehiculo_inspeccion", 0)
+	vista.call("_actualizar_camara", 0.0, true)
+	var insp_ia_ok := (not bool(vista.call("esta_en_camara_carreras"))) and absf(angle_difference(cam.rotation, 0.0)) < 0.05
+
+	vista.call("_seleccionar_vehiculo_inspeccion", -1)
+	vista.call("_actualizar_camara", 0.0, true)
+	var vuelve_hum_ok := bool(vista.call("esta_en_camara_carreras")) and absf(angle_difference(cam.rotation, rot_esperada_giro)) < 0.05
+	_assert_true(
+		insp_ia_ok and vuelve_hum_ok,
+		"Inspeccionar coche IA desactiva rotacion y desactivar inspeccion regresa a camara de carreras humana"
 	)
 
 	vp.queue_free()
