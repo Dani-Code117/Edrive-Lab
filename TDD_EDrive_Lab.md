@@ -231,6 +231,7 @@ extends Resource
 
 ```text
 res://
+├── .editorconfig
 ├── .gitignore
 ├── .gitattributes
 ├── .mcp.json                           # Configuración MCP local (protegida)
@@ -272,7 +273,7 @@ res://
 │   │   │   ├── EditorPista.gd
 │   │   │   └── GeneradorCheckpoints.gd # class_name GeneradorCheckpoints
 │   │   ├── UI/
-│   │   │   ├── boton_animado.gd
+│   │   │   ├── boton_animado.gd        # class_name BotonAnimado
 │   │   │   └── visor_red_neuronal.gd   # class_name VisorRedNeuronal
 │   │   └── Vistas/
 │   │       ├── menu_principal.gd
@@ -287,6 +288,8 @@ res://
 │   └── Temas/
 │       ├── tema_edrive.tres            # Sincronizado con tema_telemetria.tres
 │       └── tema_telemetria.tres        # Tema activo en las 4 vistas
+├── Temporales/
+│   └── icon.svg                        # Recurso auxiliar (+ .import)
 └── tests/
     ├── test_fase1_agente.gd
     ├── test_fase2_ia.gd
