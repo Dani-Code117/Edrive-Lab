@@ -162,6 +162,7 @@ vertical_alignment = 1
 [node name="BtnVel1x" type="Button" parent="Layout/BarraSuperior/Margin/HBox/ControlesVelocidad"]
 custom_minimum_size = Vector2(38, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -175,6 +176,7 @@ script = ExtResource("3_boton")
 [node name="BtnVel2x" type="Button" parent="Layout/BarraSuperior/Margin/HBox/ControlesVelocidad"]
 custom_minimum_size = Vector2(38, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -187,6 +189,7 @@ script = ExtResource("3_boton")
 [node name="BtnVel4x" type="Button" parent="Layout/BarraSuperior/Margin/HBox/ControlesVelocidad"]
 custom_minimum_size = Vector2(38, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -199,6 +202,7 @@ script = ExtResource("3_boton")
 [node name="BtnRayos" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
 custom_minimum_size = Vector2(100, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -212,6 +216,7 @@ script = ExtResource("3_boton")
 [node name="BtnEstela" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
 custom_minimum_size = Vector2(106, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -225,6 +230,7 @@ script = ExtResource("3_boton")
 [node name="BtnReiniciar" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -236,6 +242,7 @@ script = ExtResource("3_boton")
 [node name="BtnVolverConfig" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -247,6 +254,7 @@ script = ExtResource("3_boton")
 [node name="BtnEditarMapa" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -408,6 +416,7 @@ clip_text = true
 [node name="BtnInspeccionar" type="Button" parent="Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/TarjetasTelemetria/TarjetaCoche0/VBox/Margin/Col/MidRow"]
 custom_minimum_size = Vector2(106, 26)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -499,6 +508,7 @@ clip_text = true
 [node name="BtnInspeccionar" type="Button" parent="Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/TarjetasTelemetria/TarjetaCoche1/VBox/Margin/Col/MidRow"]
 custom_minimum_size = Vector2(106, 26)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
@@ -590,6 +600,7 @@ clip_text = true
 [node name="BtnInspeccionar" type="Button" parent="Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/TarjetasTelemetria/TarjetaCoche2/VBox/Margin/Col/MidRow"]
 custom_minimum_size = Vector2(106, 26)
 layout_mode = 2
+focus_mode = 0
 mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")

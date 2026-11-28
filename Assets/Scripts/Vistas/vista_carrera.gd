@@ -136,6 +136,18 @@ func _preparar_estilos_tarjetas() -> void:
 
 
 func _conectar_controles_barra() -> void:
+	for btn: Button in [
+		btn_vel_1x,
+		btn_vel_2x,
+		btn_vel_4x,
+		btn_rayos,
+		btn_estela,
+		btn_reiniciar,
+		btn_volver_config,
+		btn_editar_mapa,
+	]:
+		if btn != null:
+			btn.focus_mode = Control.FOCUS_NONE
 	btn_vel_1x.pressed.connect(func(): _establecer_velocidad(1.0))
 	btn_vel_2x.pressed.connect(func(): _establecer_velocidad(2.0))
 	btn_vel_4x.pressed.connect(func(): _establecer_velocidad(4.0))
@@ -333,6 +345,8 @@ func _configurar_tarjetas_hud() -> void:
 		var lbl_estado: Label = tarjeta.get_node("VBox/Margin/Col/TopRow/LblEstado")
 		var lbl_nivel: Label = tarjeta.get_node("VBox/Margin/Col/MidRow/LblNivelIA")
 		var btn_insp: Button = tarjeta.get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
+		if btn_insp != null:
+			btn_insp.focus_mode = Control.FOCUS_NONE
 		var lbl_vuelta: Label = tarjeta.get_node("VBox/Margin/Col/StatsRow/LblVuelta")
 		var lbl_cps: Label = tarjeta.get_node("VBox/Margin/Col/StatsRow/LblCheckpoints")
 

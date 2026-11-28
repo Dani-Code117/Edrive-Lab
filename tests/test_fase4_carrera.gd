@@ -97,6 +97,7 @@ func _run_all() -> void:
 	await _test_g_invarianza_colisiones_y_seguridad(ds)
 	await _test_h_piloto_humano_vista4(ds)
 	await _test_i_estela_telemetrica_vista4(ds)
+	await _test_j_sin_secuestro_foco_flechas(ds)
 
 	# Restaurar estado limpio
 	_liberar_teclas_prueba()
@@ -951,6 +952,104 @@ func _test_i_estela_telemetrica_vista4(ds: Node) -> void:
 		if not est.obtener_puntos().is_empty() or c.mostrar_estela or est.visible:
 			limpio_ok = false
 	_assert_true(limpio_ok, "BtnReiniciar limpia las estelas de los 3 coches y preserva el estado del toggle BtnEstela")
+
+	vp.queue_free()
+	await _esperar_frames(2)
+	ds.config_vehiculos = cfg_orig_local
+
+
+func _simular_click_en_viewport(vp: SubViewport, ctrl: Control) -> void:
+	var pos := ctrl.get_global_rect().get_center()
+	for pressed: bool in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		ev.position = pos
+		ev.global_position = pos
+		vp.push_input(ev)
+
+
+func _simular_tecla_en_viewport(vp: SubViewport, keycode: Key, pressed: bool) -> void:
+	var ev := InputEventKey.new()
+	ev.keycode = keycode
+	ev.physical_keycode = keycode
+	ev.pressed = pressed
+	vp.push_input(ev)
+	Input.parse_input_event(ev)
+	Input.flush_buffered_events()
+
+
+func _test_j_sin_secuestro_foco_flechas(ds: Node) -> void:
+	print("--- Test (j): Botones Vista 4 con FOCUS_NONE y conduccion con flechas sin secuestro de foco ---")
+	_liberar_teclas_prueba()
+	var cfg_orig_local: Array[Dictionary] = ds.config_vehiculos.duplicate(true)
+	ds.restaurar_config_vehiculos_defecto()
+	ds.config_vehiculos[0]["es_humano"] = true
+	ds.config_vehiculos[1]["es_humano"] = false
+	ds.config_vehiculos[2]["es_humano"] = false
+
+	var circuito := _crear_circuito(3)
+	_cargar_pista_en_ds(ds, circuito)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1280, 720)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(vp)
+
+	var vista := (load(RUTA_CARRERA) as PackedScene).instantiate() as Control
+	vp.add_child(vista)
+	await _esperar_frames(4)
+
+	var todos_botones_sin_foco := true
+	for nodo in _obtener_todos_nodos(vista):
+		if nodo is Button and (nodo as Control).focus_mode != Control.FOCUS_NONE:
+			todos_botones_sin_foco = false
+	_assert_true(todos_botones_sin_foco, "Todos los botones interactivos de Vista 4 tienen focus_mode == FOCUS_NONE")
+
+	var cont_tarjetas: VBoxContainer = vista.get("contenedor_tarjetas")
+	var btn_insp0: Button = cont_tarjetas.get_child(0).get_node("VBox/Margin/Col/MidRow/BtnInspeccionar")
+	var btn_estela: Button = vista.get("btn_estela")
+	var coches: Array = vista.call("obtener_vehiculos")
+	var c0 := coches[0] as VehiculoAgente
+	(coches[1] as Node).set_physics_process(false)
+	(coches[2] as Node).set_physics_process(false)
+
+	# Click real via vp.push_input en BtnInspeccionar y BtnEstela
+	_simular_click_en_viewport(vp, btn_insp0)
+	await _esperar_frames(2)
+	var insp_click_ok: bool = int(vista.call("obtener_indice_inspeccionado")) == 0 and vp.gui_get_focus_owner() == null
+
+	_simular_click_en_viewport(vp, btn_estela)
+	await _esperar_frames(2)
+	var estela_click_ok: bool = (not btn_estela.button_pressed) and vp.gui_get_focus_owner() == null
+	_assert_true(
+		insp_click_ok and estela_click_ok,
+		"Clicks reales en BtnInspeccionar y BtnEstela ejecutan accion sin capturar foco GUI (gui_get_focus_owner == null)"
+	)
+
+	# Conducir con flechas (KEY_UP + KEY_LEFT) tras clicks sin que el foco salte a la UI
+	c0.reiniciar_estado(c0.global_position, c0.rotation, vista.call("obtener_checkpoints").size())
+	_simular_tecla_en_viewport(vp, KEY_UP, true)
+	_simular_tecla_en_viewport(vp, KEY_LEFT, true)
+	await _esperar_fisica(8)
+	await _esperar_frames(2)
+
+	var foco_despues: Control = vp.gui_get_focus_owner()
+	var acel_leida := c0.ultima_aceleracion_ia
+	var giro_leido := c0.ultimo_giro_ia
+
+	_simular_tecla_en_viewport(vp, KEY_UP, false)
+	_simular_tecla_en_viewport(vp, KEY_LEFT, false)
+	_liberar_teclas_prueba()
+
+	_assert_true(
+		foco_despues == null
+		and acel_leida > 0.5
+		and giro_leido < -0.5,
+		"Flechas (KEY_UP + KEY_LEFT) tras clicks conducen al piloto humano (acel=%.2f, giro=%.2f) con foco GUI en null" % [
+			acel_leida, giro_leido
+		]
+	)
 
 	vp.queue_free()
 	await _esperar_frames(2)
