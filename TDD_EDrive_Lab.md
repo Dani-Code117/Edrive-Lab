@@ -207,13 +207,13 @@ extends Resource
   2. **S-Enlazadas (`S_ENLAZADAS`):** Incorporado a partir de la generación `15` cuando `max_generaciones >= 100`, proporcionalmente en `mini(15, maxi(1, int(floor(max_generaciones * 0.15))))` cuando `3 <= max_generaciones < 100`, o desde `gen >= 0` cuando `max_generaciones <= 2`.
   3. **Horquilla Técnica (`HORQUILLA_TECNICA`):** Incorporado a partir de la generación `35` cuando `max_generaciones >= 100`, proporcionalmente en `mini(35, maxi(2, int(floor(max_generaciones * 0.35))))` cuando `3 <= max_generaciones < 100`, o desde `gen >= 0` cuando `max_generaciones <= 2`.
   El fitness de cada individuo se promedia entre las pistas activas de la generación, y la captura progresiva de los niveles **6–9** queda bloqueada hasta que las **3 geometrías** estén activas simultáneamente (`todas_geometrias == true` y `gen >= gen_horquilla`).
-* Para generar `nivel_01.tres` a `nivel_10.tres` en consola headless cuando el usuario decida ejecutar el entrenamiento:
+* Para re-entrenar o regenerar `nivel_01.tres` a `nivel_10.tres` en consola headless (`--pop`, `--gen`, `--ticks`, `--seed` opcionales):
   ```powershell
   godot --headless --path . --script res://Assets/Scripts/Ia/EntrenadorGenetico.gd -- --entrenar
   ```
-* `res://Assets/Presets_ia/` permanece en el repositorio solo con `.gitkeep` hasta que el usuario ejecute `-- --entrenar`; mientras no existan archivos `.tres` entrenados, `RedNeuronal.cargar_nivel_o_fallback(nivel)` provee una red válida de respaldo para evitar errores en ejecución.
+* `res://Assets/Presets_ia/` ya incluye los **10 recursos entrenados** (`nivel_01.tres` .. `nivel_10.tres`) seleccionados desde el *Hall of Fame* evolutivo por bandas educativas; en caso de ausencia de algún archivo, `RedNeuronal.cargar_nivel_o_fallback(nivel)` mantiene un respaldo válido en memoria.
 
-#### Progresión Educativa de los 10 Presets:
+#### Progresión Educativa y Alcance Medido de los 10 Presets (30 s @ 60 Hz, perfil 0.70):
 1. **Nivel 1 — Novato Caótico:** Pesos sin refinar; acelera sin frenar y gira erráticamente.
 2. **Nivel 2 — Primeros Reflejos:** Detecta el muro frontal tarde; intenta esquivar pero roza bordes.
 3. **Nivel 3 — Cauteloso Lento:** Mantiene baja aceleración constante; supera curvas abiertas.
@@ -224,6 +224,19 @@ extends Resource
 8. **Nivel 8 — Piloto Ágil:** Aprovecha rectas a alta velocidad y anticipa giros cerrados.
 9. **Nivel 9 — Ápice Óptimo:** Busca el interior de las curvas para minimizar distancia.
 10. **Nivel 10 — Maestro Autónomo:** Conducción fluida, rápida y adaptable a cualquier circuito.
+
+| Nivel | Título | Óvalo Clásico (32 cp/vta) | S-Enlazadas (30 cp/vta) | Horquilla Técnica (52 cp/vta) | Circuito Inédito (31 cp/vta) | Oscilación media | Fitness prom. |
+| :---: | :--- | :--- | :--- | :--- | :--- | :---: | :---: |
+| **1** | Novato Caótico | `0 cp` · v1 · Atascado (`40.7 px/s`) | `0 cp` · v1 · Chocado | `0 cp` · v1 · Chocado | `0 cp` · v1 · Chocado | `0.066` | `23.2` |
+| **2** | Primeros Reflejos | `2 cp` · v1 · Chocado (`92.6 px/s`) | `27 cp` · v1 · Chocado | `3 cp` · v1 · Chocado | `89 cp` · v3 · Corriendo | `0.130` | `1405.7` |
+| **3** | Cauteloso Lento | `28 cp` · v1 · Chocado (`132.0 px/s`) | `3 cp` · v1 · Chocado | `25 cp` · v1 · Chocado | `5 cp` · v1 · Chocado | `0.076` | `2408.5` |
+| **4** | Zig-Zag Nervioso | `89 cp` · v3 · Corriendo (`140.7 px/s`) | `0 cp` · v1 · Chocado | `8 cp` · v1 · Chocado | `4 cp` · v1 · Chocado | `0.065` | `4373.9` |
+| **5** | Conductor Básico | `81 cp` · v3 · Corriendo (`136.0 px/s`) | `4 cp` · v1 · Chocado | `23 cp` · v1 · Chocado | `5 cp` · v1 · Chocado | `0.086` | `4852.8` |
+| **6** | Trazada Estable | `85 cp` · v3 · Corriendo (`138.1 px/s`) | `38 cp` · v2 · Chocado | `25 cp` · v1 · Chocado | `20 cp` · v1 · Chocado | `0.047` | `6651.7` |
+| **7** | Control de Frenada | `93 cp` · v3 · Corriendo (`142.5 px/s`) | `88 cp` · v3 · Corriendo | `40 cp` · v1 · Chocado | `92 cp` · v3 · Corriendo | `0.198` | `9833.6` |
+| **8** | Piloto Ágil | `92 cp` · v3 · Corriendo (`142.6 px/s`) | `89 cp` · v3 · Corriendo | `99 cp` · v2 · Corriendo | `92 cp` · v3 · Corriendo | `0.219` | `12427.1` |
+| **9** | Ápice Óptimo | `93 cp` · v3 · Corriendo (`142.5 px/s`) | `89 cp` · v3 · Corriendo | `99 cp` · v2 · Corriendo | `92 cp` · v3 · Corriendo | `0.213` | `12467.2` |
+| **10** | Maestro Autónomo | `93 cp` · v3 · Corriendo (`142.5 px/s`) | `89 cp` · v3 · Corriendo | `99 cp` · v2 · Corriendo | `92 cp` · v3 · Corriendo | `0.194` | `12467.1` |
 
 ---
 
@@ -255,8 +268,8 @@ res://
 │   │       ├── configuracion_carrera.tscn
 │   │       └── vista_carrera.tscn
 │   ├── Presets_ia/
-│   │   ├── .gitkeep                    # Carpeta limpia hasta ejecutar --entrenar
-│   │   └── (nivel_01.tres .. nivel_10.tres al ejecutar entrenamiento)
+│   │   ├── .gitkeep
+│   │   └── nivel_01.tres .. nivel_10.tres # 10 cerebros entrenados (18 -> 8 -> 2)
 │   ├── Scripts/
 │   │   ├── datos_simulacion.gd         # Autoload: DatosSimulacion
 │   │   ├── Agente/
@@ -291,6 +304,7 @@ res://
 ├── Temporales/
 │   └── icon.svg                        # Recurso auxiliar (+ .import)
 └── tests/
+    ├── benchmark_presets_ia.gd
     ├── test_fase1_agente.gd
     ├── test_fase2_ia.gd
     ├── test_fase3_vista3.gd
@@ -303,13 +317,14 @@ res://
 
 ## 5. Pruebas Automatizadas y Verificación
 
-El proyecto incluye **4 suites de pruebas automatizadas** con un total de **258 verificaciones** ejecutables en Godot headless:
+El proyecto incluye **4 suites de pruebas automatizadas** + **1 benchmark educativo** ejecutables en Godot headless:
 
 ```powershell
 godot --headless --path . --script res://tests/<archivo>.gd
 ```
 
+* `tests/benchmark_presets_ia.gd` (**12 verificaciones**): Evalúa `nivel_01.tres`..`nivel_10.tres` durante 30 s físicos reales (`60 Hz`) sobre los 3 arquetipos oficiales y un **4.º Circuito Inédito**, midiendo checkpoints, vueltas, velocidad media, oscilación y fitness.
 * `tests/test_fase1_agente.gd` (**74 verificaciones**): Capas y escena de `VehiculoAgente`, 14 sensores `RayCast2D` y normalización, física de los 5 atributos, colisión con muros, no colisión entre vehículos, temporizador anti-atascos, conteo de vueltas/checkpoints, resistencia a `NaN`/`INF`, **Modo Piloto Humano** (`es_humano` ↔ `control_manual`, entradas `WASD`/Flechas, física compartida y `ultimas_entradas_ia`) y **`EstelaTelemetrica`** (`top_level`, `z_index = 1`, colores verde/amarillo-naranja/azul-cian, longitud configurable `[10..600]` y limpieza en reinicio).
-* `tests/test_fase2_ia.gd` (**53 verificaciones**): Topología `18 -> 8 -> 2`, inferencia feedforward con `tanh()`, serialización y round-trip temporal de `CerebroEntrenado`, casos borde `NaN`/`INF`, integración con `VehiculoAgente`, modo seguro de `EntrenadorGenetico` con evaluación sobre las **3 geometrías**, escalado proporcional de currículum (`3..99` y `max_generaciones=3`), compuerta multi-geometría para niveles `6..9` (`Assets/Presets_ia/` solo con `.gitkeep`), y **`ArquetiposPista` + Vista 2** (`creador_mapa.tscn`, carga editable de los 3 circuitos, layout `1280x720`/`1920x1080`, `BotonAnimado` y `tema_telemetria.tres`).
-* `tests/test_fase3_vista3.gd` (**78 verificaciones**): `GeneradorCheckpoints` (celdas `16 px` y regresión topológica), escenas Vista 1–3 (`BotonAnimado` y paridad `tema_edrive.tres`/`tema_telemetria.tres`), minimapa dinámico, 3 tarjetas/5 sliders/10 niveles IA, sanitización y persistencia en `DatosSimulacion`, layout multi-resolución (`1920x1080`, `1440x900`, `1280x960`, `1280x720`), **arquetipos de vehículo** (`Equilibrado`, `Velocista`, `Drift`, `Técnico`, `Personalizado`) y **selector `IA / Piloto Humano`** (exclusividad máx-1, `OptNivelIA.disabled`, regresiones de estado y normalización `1/2/4` ranuras).
-* `tests/test_fase4_carrera.gd` (**53 verificaciones**): `VisorRedNeuronal` (`18 -> 8 -> 2` y modo `"Control Manual"`), aislamiento sin `DatosSimulacion`, reconstrucción Layer 1 y checkpoints dinámicos, simulación, zoom/seguimiento de cámara, toggle de rayos, escala de tiempo `1x/2x/4x`, reinicio (incluyendo regresión borde `Checkpoint_0`), layout multi-resolución, flujo E2E Vista 1→4 con `Assets/Presets_ia/` limpio (`.gitkeep`), invarianza de resolución, **Piloto Humano en Vista 4** (etiqueta `"Piloto Humano"`, `cerebro = null`, visor en vivo, botones con `FOCUS_NONE` sin secuestro de foco al conducir con flechas) y **`EstelaTelemetrica` + toggle `Estela: ON/OFF`** sin controles extra de longitud en la UI.
+* `tests/test_fase2_ia.gd` (**53 verificaciones**): Topología `18 -> 8 -> 2`, inferencia feedforward con `tanh()`, serialización y round-trip temporal de `CerebroEntrenado`, casos borde `NaN`/`INF`, integración con `VehiculoAgente`, modo seguro de `EntrenadorGenetico` con evaluación sobre las **3 geometrías**, escalado proporcional de currículum (`3..99` y `max_generaciones=3`), compuerta multi-geometría para niveles `6..9`, validación de los 10 `.tres` entrenados en `Assets/Presets_ia/`, y **`ArquetiposPista` + Vista 2** (`creador_mapa.tscn`, carga editable de los 3 circuitos, layout `1280x720`/`1920x1080`, `BotonAnimado` y `tema_telemetria.tres`).
+* `tests/test_fase3_vista3.gd` (**78 verificaciones**): `GeneradorCheckpoints` (celdas `16 px` y regresión topológica), escenas Vista 1–3 (`BotonAnimado` y paridad `tema_edrive.tres`/`tema_telemetria.tres`), minimapa dinámico, 3 tarjetas/5 sliders/10 niveles IA entrenados, sanitización y persistencia en `DatosSimulacion`, layout multi-resolución (`1920x1080`, `1440x900`, `1280x960`, `1280x720`), **arquetipos de vehículo** (`Equilibrado`, `Velocista`, `Drift`, `Técnico`, `Personalizado`) y **selector `IA / Piloto Humano`** (exclusividad máx-1, `OptNivelIA.disabled`, regresiones de estado y normalización `1/2/4` ranuras).
+* `tests/test_fase4_carrera.gd` (**56 verificaciones**): `VisorRedNeuronal` (`18 -> 8 -> 2` y modo `"Control Manual"`), aislamiento sin `DatosSimulacion`, reconstrucción Layer 1 y checkpoints dinámicos, simulación, cámara de carreras rotatoria para Piloto Humano y zoom/seguimiento de inspección, toggle de rayos y estela desactivados por defecto, escala de tiempo `1x/2x/4x`, reinicio (incluyendo regresión borde `Checkpoint_0`), layout multi-resolución, flujo E2E Vista 1→4 con los 10 presets `.tres` válidos, invarianza de resolución, **Piloto Humano en Vista 4** (etiqueta `"Piloto Humano"`, `cerebro = null`, visor en vivo, botones con `FOCUS_NONE` sin secuestro de foco al conducir con flechas) y **`EstelaTelemetrica` + toggle `Estela: ON/OFF`** sin controles extra de longitud en la UI.
