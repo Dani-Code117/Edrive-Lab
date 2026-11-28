@@ -209,8 +209,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 toggle_mode = true
-button_pressed = true
-text = "Rayos: ON"
+text = "Rayos: OFF"
 script = ExtResource("3_boton")
 
 [node name="BtnEstela" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
@@ -223,8 +222,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 toggle_mode = true
-button_pressed = true
-text = "Estela: ON"
+text = "Estela: OFF"
 script = ExtResource("3_boton")
 
 [node name="BtnReiniciar" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]

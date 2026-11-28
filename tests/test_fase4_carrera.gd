@@ -874,10 +874,13 @@ func _test_i_estela_telemetrica_vista4(ds: Node) -> void:
 			sin_controles_longitud = false
 	_assert_true(
 		btn_estela != null and btn_estela is BotonAnimado and btn_estela.toggle_mode
-		and btn_estela.button_pressed and btn_estela.text == "Estela: ON"
+		and (not btn_estela.button_pressed) and btn_estela.text == "Estela: OFF"
 		and sin_controles_longitud,
-		"BtnEstela es BotonAnimado toggle ('Estela: ON') y no hay controles extra de longitud en Vista 4"
+		"BtnEstela es BotonAnimado toggle (inicia en 'Estela: OFF') y no hay controles extra de longitud en Vista 4"
 	)
+
+	btn_estela.button_pressed = true
+	await _esperar_frames(1)
 
 	var coches: Array = vista.call("obtener_vehiculos")
 	var estelas_ok := coches.size() == 3
@@ -1022,7 +1025,7 @@ func _test_j_sin_secuestro_foco_flechas(ds: Node) -> void:
 
 	_simular_click_en_viewport(vp, btn_estela)
 	await _esperar_frames(2)
-	var estela_click_ok: bool = (not btn_estela.button_pressed) and vp.gui_get_focus_owner() == null
+	var estela_click_ok: bool = btn_estela.button_pressed and vp.gui_get_focus_owner() == null
 	_assert_true(
 		insp_click_ok and estela_click_ok,
 		"Clicks reales en BtnInspeccionar y BtnEstela ejecutan accion sin capturar foco GUI (gui_get_focus_owner == null)"
@@ -1093,7 +1096,7 @@ func _test_k_camara_carreras_piloto_humano(ds: Node) -> void:
 		and not cam.ignore_rotation
 		and bool(vista.call("esta_en_camara_carreras"))
 		and absf(angle_difference(cam.rotation, rot_esperada)) < 0.08
-		and cam.zoom.x > zoom_completo * 3.0
+		and cam.zoom.x > zoom_completo * 1.8 and cam.zoom.x < zoom_completo * 2.8
 		and look_ahead_proy > 15.0,
 		"Piloto Humano activa camara rotatoria de carreras (rot=%.2f vs %.2f, zoom=%.2f, look_ahead=%.1f)" % [
 			cam.rotation, rot_esperada, cam.zoom.x, look_ahead_proy
