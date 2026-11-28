@@ -1,12 +1,13 @@
 [gd_scene format=3 uid="uid://b56wypyr2fkkl"]
 
 [ext_resource type="Script" uid="uid://bp62lx4emvw8g" path="res://Assets/Scripts/Agente/vehiculo_agente.gd" id="1_agente"]
+[ext_resource type="Script" path="res://Assets/Scripts/Agente/estela_telemetrica.gd" id="2_estela"]
 
 [node name="VehiculoAgente" type="CharacterBody2D" unique_id=1541514701]
 collision_layer = 2
 motion_mode = 1
 script = ExtResource("1_agente")
-longitud_rayo = 200.0
+longitud_rayo = 300.0
 tiempo_max_sin_checkpoint = 8.0
 
 [node name="SpriteCoche" type="Sprite2D" parent="." unique_id=2033837391]
@@ -62,3 +63,9 @@ target_position = Vector2(-113.137, 113.137)
 
 [node name="DibujoSensores" type="Node2D" parent="." unique_id=89133410]
 z_index = 2
+
+[node name="EstelaTelemetrica" type="Node2D" parent="." unique_id=1479632580]
+top_level = true
+z_index = 1
+z_as_relative = false
+script = ExtResource("2_estela")

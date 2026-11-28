@@ -16,8 +16,35 @@ const NUM_ENTRADAS_IA: int = 18 # 14 RayCast2D + 2 Brújula CP (cos, sin) + 2 Es
 const LONGITUD_RAYO: float = 160.0
 const RUTA_SPRITE_COCHE := "res://Assets/Sprites/coche_base.png"
 
-@export var control_manual: bool = false
+var _sincronizando_modo_humano: bool = false
+
+@export var control_manual: bool = false:
+	set(value):
+		control_manual = value
+		if not _sincronizando_modo_humano:
+			_sincronizando_modo_humano = true
+			es_humano = value
+			_sincronizando_modo_humano = false
+
+@export var es_humano: bool = false:
+	set(value):
+		es_humano = value
+		if not _sincronizando_modo_humano:
+			_sincronizando_modo_humano = true
+			control_manual = value
+			_sincronizando_modo_humano = false
+
 @export var mostrar_sensores: bool = true
+@export var mostrar_estela: bool = true:
+	set(value):
+		mostrar_estela = value
+		_sincronizar_estela_config()
+
+@export_range(10, 600, 1) var longitud_maxima_estela: int = 120:
+	set(value):
+		longitud_maxima_estela = clampi(value, 10, 600)
+		_sincronizar_estela_config()
+
 @export var longitud_rayo: float = LONGITUD_RAYO
 @export var tiempo_max_sin_checkpoint: float = 4.0
 
@@ -50,6 +77,7 @@ var vuelta_actual: int = 1
 var tiempo_sin_checkpoint: float = 0.0
 
 var lecturas_sensores: PackedFloat64Array = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+var ultimas_entradas_ia: PackedFloat64Array = _crear_entradas_iniciales()
 var posiciones_checkpoints: PackedVector2Array = PackedVector2Array()
 var ultima_aceleracion_ia: float = 0.0
 var ultimo_giro_ia: float = 0.0
@@ -60,13 +88,17 @@ var cerebro: Variant = null
 @onready var sprite: Sprite2D = $SpriteCoche
 @onready var nodo_sensores: Node2D = $Sensores
 @onready var dibujo_sensores: Node2D = $DibujoSensores
+@onready var estela_telemetrica: EstelaTelemetrica = get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
 var _rayos: Array[RayCast2D] = []
+var _frame_ultimo_reinicio: int = -100
+var _pos_ultimo_reinicio: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
 	_configurar_sprite()
 	_configurar_rayos()
 	_recalcular_fisicas()
+	_sincronizar_estela_config()
 	dibujo_sensores.draw.connect(_on_dibujo_sensores_draw)
 
 
@@ -75,6 +107,13 @@ func configurar(cfg: Dictionary) -> void:
 	var raw_color: Variant = cfg.get("color", Color.WHITE)
 	color_vehiculo = raw_color if raw_color is Color else Color.WHITE
 	nivel_ia = int(roundf(_sanitizar_float(cfg.get("nivel_ia", 1), 1.0, 10.0, 1.0)))
+
+	if cfg.has("es_humano"):
+		es_humano = _sanitizar_bool(cfg.get("es_humano", false))
+	elif cfg.has("control_manual"):
+		es_humano = _sanitizar_bool(cfg.get("control_manual", false))
+	else:
+		es_humano = false
 
 	attr_velocidad_maxima = _sanitizar_float(cfg.get("velocidad_maxima", 0.7), 0.0, 1.0, 0.7)
 	attr_aceleracion = _sanitizar_float(cfg.get("aceleracion", 0.7), 0.0, 1.0, 0.7)
@@ -90,6 +129,8 @@ func configurar(cfg: Dictionary) -> void:
 func reiniciar_estado(pos: Vector2, rot: float, cant_checkpoints: int = 0) -> void:
 	global_position = pos if pos.is_finite() else Vector2.ZERO
 	rotation = rot if is_finite(rot) else 0.0
+	_frame_ultimo_reinicio = Engine.get_physics_frames()
+	_pos_ultimo_reinicio = global_position
 	velocity = Vector2.ZERO
 	velocidad_actual = 0.0
 	esta_chocado = false
@@ -104,6 +145,10 @@ func reiniciar_estado(pos: Vector2, rot: float, cant_checkpoints: int = 0) -> vo
 	if lecturas_sensores.size() != ANGULOS_SENSORES.size():
 		lecturas_sensores.resize(ANGULOS_SENSORES.size())
 	lecturas_sensores.fill(1.0)
+	ultimas_entradas_ia = _construir_entradas_ia()
+	if estela_telemetrica != null and is_instance_valid(estela_telemetrica):
+		estela_telemetrica.limpiar(global_position)
+	_sincronizar_estela_config()
 	if sprite != null:
 		sprite.modulate = color_vehiculo
 
@@ -111,6 +156,17 @@ func reiniciar_estado(pos: Vector2, rot: float, cant_checkpoints: int = 0) -> vo
 func registrar_checkpoint(id_cp: int) -> void:
 	if esta_chocado or total_checkpoints <= 0:
 		return
+
+	# Ignorar callbacks rezagados de PhysicsServer2D::flush_queries() tras teletransportar al reiniciar.
+	var frames_desde_reinicio := Engine.get_physics_frames() - _frame_ultimo_reinicio
+	if frames_desde_reinicio >= 1 and frames_desde_reinicio <= 2 and global_position.distance_to(_pos_ultimo_reinicio) < 2.0:
+		var cp_area := _buscar_checkpoint_area(id_cp)
+		if cp_area != null:
+			var col := cp_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+			if col != null and col.shape is CircleShape2D:
+				var radio := (col.shape as CircleShape2D).radius * maxf(cp_area.global_scale.x, cp_area.global_scale.y)
+				if cp_area.global_position.distance_to(global_position) > radio + 4.8:
+					return
 
 	var esperado := (ultimo_checkpoint + 1) % total_checkpoints
 	if id_cp == esperado:
@@ -120,6 +176,24 @@ func registrar_checkpoint(id_cp: int) -> void:
 		checkpoints_cruzados += 1
 		tiempo_sin_checkpoint = 0.0
 		checkpoint_alcanzado.emit(self, id_cp, vuelta_actual)
+
+
+func _buscar_checkpoint_area(id_cp: int) -> CheckpointArea:
+	var padre := get_parent()
+	if padre == null:
+		return null
+	var raices: Array[Node] = [padre]
+	if padre.get_parent() != null:
+		raices.append(padre.get_parent())
+	for raiz in raices:
+		for hijo in raiz.get_children():
+			if hijo is CheckpointArea and (hijo as CheckpointArea).id_checkpoint == id_cp:
+				return hijo as CheckpointArea
+			if hijo.name == "Checkpoints":
+				for cp_hijo in hijo.get_children():
+					if cp_hijo is CheckpointArea and (cp_hijo as CheckpointArea).id_checkpoint == id_cp:
+						return cp_hijo as CheckpointArea
+	return null
 
 
 func _recalcular_fisicas() -> void:
@@ -196,7 +270,10 @@ func _physics_process(delta: float) -> void:
 			_marcar_chocado("Atascado")
 			return
 
-	var comandos := _obtener_comandos()
+	var entradas_tick := _construir_entradas_ia()
+	ultimas_entradas_ia = entradas_tick
+
+	var comandos := _obtener_comandos(entradas_tick)
 	var acel_cmd: float = comandos.x
 	var giro_cmd: float = comandos.y
 	ultima_aceleracion_ia = acel_cmd
@@ -216,6 +293,8 @@ func _physics_process(delta: float) -> void:
 	velocity = velocity.lerp(vel_objetivo, clampf(factor_agarre * delta, 0.0, 1.0))
 
 	move_and_slide()
+	if estela_telemetrica != null and is_instance_valid(estela_telemetrica):
+		estela_telemetrica.registrar_punto(global_position, acel_cmd, velocidad_actual)
 	if get_slide_collision_count() > 0:
 		_marcar_chocado("Chocado")
 
@@ -236,24 +315,32 @@ func _actualizar_sensores() -> void:
 			lecturas_sensores[i] = 1.0
 
 
-func _obtener_comandos() -> Vector2:
-	if control_manual:
-		var acel := Input.get_action_strength("ui_up") - Input.get_action_strength("ui_down")
-		if Input.is_key_pressed(KEY_W):
-			acel = 1.0
-		elif Input.is_key_pressed(KEY_S):
-			acel = -1.0
+func _obtener_comandos(entradas_ia: PackedFloat64Array = PackedFloat64Array()) -> Vector2:
+	if es_humano or control_manual:
+		var empuje_adelante := maxf(
+			1.0 if (Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP)) else 0.0,
+			Input.get_action_strength("ui_up")
+		)
+		var empuje_atras := maxf(
+			1.0 if (Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)) else 0.0,
+			Input.get_action_strength("ui_down")
+		)
+		var acel := empuje_adelante - empuje_atras
 
-		var giro := Input.get_action_strength("ui_right") - Input.get_action_strength("ui_left")
-		if Input.is_key_pressed(KEY_D):
-			giro = 1.0
-		elif Input.is_key_pressed(KEY_A):
-			giro = -1.0
+		var giro_der := maxf(
+			1.0 if (Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) else 0.0,
+			Input.get_action_strength("ui_right")
+		)
+		var giro_izq := maxf(
+			1.0 if (Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)) else 0.0,
+			Input.get_action_strength("ui_left")
+		)
+		var giro := giro_der - giro_izq
 		return Vector2(_sanitizar_float(acel, -1.0, 1.0, 0.0), _sanitizar_float(giro, -1.0, 1.0, 0.0))
 
 	if cerebro != null and cerebro.has_method("evaluar"):
-		var entradas_ia := _construir_entradas_ia()
-		var salida: Variant = cerebro.evaluar(entradas_ia)
+		var entradas_eval := entradas_ia if entradas_ia.size() == NUM_ENTRADAS_IA else _construir_entradas_ia()
+		var salida: Variant = cerebro.evaluar(entradas_eval)
 		if (salida is PackedFloat64Array or salida is PackedFloat32Array or salida is Array) and salida.size() >= 2:
 			return Vector2(
 				_sanitizar_float(salida[0], -1.0, 1.0, 0.0),
@@ -261,6 +348,34 @@ func _obtener_comandos() -> Vector2:
 			)
 
 	return Vector2.ZERO
+
+
+static func _crear_entradas_iniciales() -> PackedFloat64Array:
+	var arr := PackedFloat64Array()
+	arr.resize(NUM_ENTRADAS_IA)
+	arr.fill(1.0)
+	arr[15] = 0.5
+	arr[16] = 0.5
+	arr[17] = 0.5
+	return arr
+
+
+func _sanitizar_bool(valor: Variant) -> bool:
+	if valor is bool:
+		return valor
+	if valor is int:
+		return valor != 0
+	return false
+
+
+func _sincronizar_estela_config() -> void:
+	var nodo_estela: EstelaTelemetrica = estela_telemetrica
+	if nodo_estela == null:
+		nodo_estela = get_node_or_null("EstelaTelemetrica") as EstelaTelemetrica
+	if nodo_estela == null or not is_instance_valid(nodo_estela):
+		return
+	nodo_estela.mostrar_estela = mostrar_estela
+	nodo_estela.longitud_maxima_estela = clampi(longitud_maxima_estela, 10, 600)
 
 
 func _construir_entradas_ia() -> PackedFloat64Array:
