@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Pruebas automatizadas Fase 2: CerebroEntrenado, RedNeuronal (7 -> 6 -> 2),
+## Pruebas automatizadas Fase 2: CerebroEntrenado, RedNeuronal (18 -> 8 -> 2),
 ## integración con VehiculoAgente y preparación segura de EntrenadorGenetico.
 ## NOTA: Nunca ejecuta entrenamiento real ni escribe archivos .tres en res://Assets/Presets_ia/.
 

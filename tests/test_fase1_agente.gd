@@ -83,11 +83,13 @@ func _simular_tecla(keycode: Key, pressed: bool) -> void:
 	ev.physical_keycode = keycode
 	ev.pressed = pressed
 	Input.parse_input_event(ev)
+	Input.flush_buffered_events()
 
 
 func _liberar_teclas_prueba() -> void:
 	for kc: Key in [KEY_W, KEY_S, KEY_A, KEY_D, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
 		_simular_tecla(kc, false)
+	Input.flush_buffered_events()
 
 
 func _test_a_capas_escenas_y_sprites() -> void:
