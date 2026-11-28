@@ -389,13 +389,18 @@ func _test_d_integracion_vehiculo_agente() -> void:
 
 
 func _test_e_entrenador_genetico_y_presets_vacios() -> void:
-	print("--- Test (e): EntrenadorGenetico seguro y Assets/Presets_ia/ sin .tres ---")
+	print("--- Test (e): EntrenadorGenetico seguro y 10 presets entrenados en Assets/Presets_ia/ ---")
 	var ds := root.get_node_or_null("DatosSimulacion")
 	_assert_true(ds != null, "Autoload DatosSimulacion presente")
 
 	var celdas_antes: int = ds.celdas_asfalto.size() if ds != null else -1
 	var meta_antes: bool = ds.tiene_meta if ds != null else false
 	var cps_antes: int = ds.ruta_checkpoints.size() if ds != null else -1
+	var mtimes_antes := {}
+	for niv in range(1, 11):
+		var ruta_p := CerebroEntrenado.ruta_para_nivel(niv)
+		if FileAccess.file_exists(ruta_p):
+			mtimes_antes[niv] = FileAccess.get_modified_time(ruta_p)
 
 	# Instanciar EntrenadorGenetico NO debe entrenar ni mutar DatosSimulacion
 	var entrenador := EntrenadorGenetico.new()
@@ -472,27 +477,24 @@ func _test_e_entrenador_genetico_y_presets_vacios() -> void:
 			"EntrenadorGenetico no muta el estado de DatosSimulacion"
 		)
 
-	# Verificación estricta: Assets/Presets_ia/ contiene UNICAMENTE .gitkeep (cero .tres)
-	var dir := DirAccess.open(RUTA_PRESETS_IA)
-	var archivos: Array[String] = []
-	var tiene_gitkeep := false
-	var tiene_tres := false
-	if dir != null:
-		dir.list_dir_begin()
-		var item := dir.get_next()
-		while item != "":
-			if item != "." and item != "..":
-				archivos.append(item)
-				if item == ".gitkeep":
-					tiene_gitkeep = true
-				if item.ends_with(".tres"):
-					tiene_tres = true
-			item = dir.get_next()
-		dir.list_dir_end()
+	# Verificación estricta: guardar_en_disco=false no altera disco y los 10 presets existen y son válidos
+	var presets_ok := true
+	var sin_modificar := true
+	for niv in range(1, 11):
+		var ruta_p := CerebroEntrenado.ruta_para_nivel(niv)
+		if not ResourceLoader.exists(ruta_p):
+			presets_ok = false
+			break
+		if mtimes_antes.has(niv) and FileAccess.get_modified_time(ruta_p) != int(mtimes_antes[niv]):
+			sin_modificar = false
+		var rec := ResourceLoader.load(ruta_p) as CerebroEntrenado
+		if rec == null or not rec.es_valido() or rec.nivel != niv:
+			presets_ok = false
+			break
 
 	_assert_true(
-		tiene_gitkeep and not tiene_tres and archivos.size() == 1,
-		"Assets/Presets_ia/ contiene unicamente .gitkeep y cero .tres (archivos: %s)" % str(archivos)
+		presets_ok and sin_modificar,
+		"Assets/Presets_ia/ contiene nivel_01..nivel_10.tres validos y guardar_en_disco=false no los sobreescribe"
 	)
 
 	# Regresion curriculum: umbrales proporcionales en 3..99 y compuerta multi-geometria para niveles 6..9

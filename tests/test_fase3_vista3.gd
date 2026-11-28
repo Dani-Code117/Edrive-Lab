@@ -477,13 +477,13 @@ func _test_c_tarjetas_sliders_e_ia(ds: Node) -> void:
 		if opt_ia.item_count != 10:
 			tarjetas_ok = false
 
-		# Probar selección de nivel IA y manejo seguro de .tres ausente
+		# Probar selección de nivel IA y carga del preset entrenado correspondiente
 		opt_ia.select(6)
 		opt_ia.item_selected.emit(6)
 		var ruta7 := CerebroEntrenado.ruta_para_nivel(7)
-		if ResourceLoader.exists(ruta7):
+		if not ResourceLoader.exists(ruta7):
 			tarjetas_ok = false
-		if lbl_desc.text != ds.NIVELES_IA[6]["desc"] or lbl_estado.text.is_empty():
+		if lbl_desc.text != ds.NIVELES_IA[6]["desc"] or not lbl_estado.text.contains("Preset entrenado listo"):
 			tarjetas_ok = false
 		if ds.config_vehiculos[i]["nivel_ia"] != 7:
 			tarjetas_ok = false
@@ -545,18 +545,18 @@ func _test_d_persistencia_botones_y_presets(ds: Node) -> void:
 
 	_assert_true(ResourceLoader.exists(vista.ESCENA_CREADOR), "Destino de BtnVolver (creador_mapa.tscn) existe")
 
-	# Verificar Assets/Presets_ia/ contiene UNICAMENTE .gitkeep
-	var dir := DirAccess.open(RUTA_PRESETS_IA)
-	var archivos: Array[String] = []
-	if dir != null:
-		dir.list_dir_begin()
-		var item := dir.get_next()
-		while item != "":
-			if item != "." and item != "..":
-				archivos.append(item)
-			item = dir.get_next()
-		dir.list_dir_end()
-	_assert_true(archivos.size() == 1 and archivos[0] == ".gitkeep", "Assets/Presets_ia/ contiene unicamente .gitkeep (archivos: %s)" % str(archivos))
+	# Verificar Assets/Presets_ia/ contiene los 10 presets nivel_01..10.tres válidos
+	var presets_ok := true
+	for niv in range(1, 11):
+		var ruta_p := CerebroEntrenado.ruta_para_nivel(niv)
+		if not ResourceLoader.exists(ruta_p):
+			presets_ok = false
+			break
+		var rec := ResourceLoader.load(ruta_p) as CerebroEntrenado
+		if rec == null or not rec.es_valido() or rec.nivel != niv:
+			presets_ok = false
+			break
+	_assert_true(presets_ok, "Assets/Presets_ia/ contiene los 10 presets nivel_01.tres..nivel_10.tres validos")
 
 	vp.queue_free()
 	await _esperar_frames(2)

@@ -572,18 +572,18 @@ func _test_f_flujo_completo_e2e_y_presets(ds: Node) -> void:
 		current_scene.queue_free()
 		await _esperar_frames(2)
 
-	# Verificar Assets/Presets_ia/ contiene UNICAMENTE .gitkeep
-	var dir := DirAccess.open(RUTA_PRESETS_IA)
-	var archivos: Array[String] = []
-	if dir != null:
-		dir.list_dir_begin()
-		var item := dir.get_next()
-		while item != "":
-			if item != "." and item != "..":
-				archivos.append(item)
-			item = dir.get_next()
-		dir.list_dir_end()
-	_assert_true(archivos.size() == 1 and archivos[0] == ".gitkeep", "Assets/Presets_ia/ contiene unicamente .gitkeep (archivos: %s)" % str(archivos))
+	# Verificar Assets/Presets_ia/ contiene los 10 presets nivel_01..10.tres válidos y cargables
+	var presets_ok := true
+	for niv in range(1, 11):
+		var ruta_p := CerebroEntrenado.ruta_para_nivel(niv)
+		if not ResourceLoader.exists(ruta_p):
+			presets_ok = false
+			break
+		var red_p := RedNeuronal.cargar_nivel_o_fallback(niv)
+		if red_p == null or red_p.cerebro == null or not red_p.cerebro.es_valido() or red_p.cerebro.nivel != niv:
+			presets_ok = false
+			break
+	_assert_true(presets_ok, "Assets/Presets_ia/ contiene nivel_01..nivel_10.tres validos y cargables")
 
 
 func _test_g_invarianza_colisiones_y_seguridad(ds: Node) -> void:
