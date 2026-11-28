@@ -202,11 +202,11 @@ extends Resource
 
 #### Entrenamiento Genético Offline con Currículum de 3 Geometrías (`EntrenadorGenetico.gd`)
 * Opera en modo seguro por defecto (cargar o verificar el script nunca dispara entrenamiento).
-* Reutiliza directamente `ArquetiposPista` en `crear_circuito_entrenamiento()` y `entrenar_en_arbol()` para evaluar **3 geometrías progresivas**:
+* Reutiliza directamente `ArquetiposPista` en `crear_circuito_entrenamiento()` y `entrenar_en_arbol()` para evaluar **3 geometrías progresivas** con umbrales calculados mediante `calcular_umbrales_curriculum(max_generaciones)`:
   1. **Óvalo Clásico (`OVALO_CLASICO`):** Evaluado desde la generación `0`.
-  2. **S-Enlazadas (`S_ENLAZADAS`):** Incorporado a partir de la generación `15` (o desde el inicio cuando `max_generaciones <= 2`).
-  3. **Horquilla Técnica (`HORQUILLA_TECNICA`):** Incorporado a partir de la generación `35` (o desde el inicio cuando `max_generaciones <= 2`).
-  El fitness de cada individuo se promedia entre las pistas activas de la generación.
+  2. **S-Enlazadas (`S_ENLAZADAS`):** Incorporado a partir de la generación `15` cuando `max_generaciones >= 100`, proporcionalmente en `mini(15, maxi(1, int(floor(max_generaciones * 0.15))))` cuando `3 <= max_generaciones < 100`, o desde `gen >= 0` cuando `max_generaciones <= 2`.
+  3. **Horquilla Técnica (`HORQUILLA_TECNICA`):** Incorporado a partir de la generación `35` cuando `max_generaciones >= 100`, proporcionalmente en `mini(35, maxi(2, int(floor(max_generaciones * 0.35))))` cuando `3 <= max_generaciones < 100`, o desde `gen >= 0` cuando `max_generaciones <= 2`.
+  El fitness de cada individuo se promedia entre las pistas activas de la generación, y la captura progresiva de los niveles **6–9** queda bloqueada hasta que las **3 geometrías** estén activas simultáneamente (`todas_geometrias == true` y `gen >= gen_horquilla`).
 * Para generar `nivel_01.tres` a `nivel_10.tres` en consola headless cuando el usuario decida ejecutar el entrenamiento:
   ```powershell
   godot --headless --path . --script res://Assets/Scripts/Ia/EntrenadorGenetico.gd -- --entrenar
@@ -303,13 +303,13 @@ res://
 
 ## 5. Pruebas Automatizadas y Verificación
 
-El proyecto incluye **4 suites de pruebas automatizadas** con un total de **252 verificaciones** ejecutables en Godot headless:
+El proyecto incluye **4 suites de pruebas automatizadas** con un total de **258 verificaciones** ejecutables en Godot headless:
 
 ```powershell
 godot --headless --path . --script res://tests/<archivo>.gd
 ```
 
 * `tests/test_fase1_agente.gd` (**74 verificaciones**): Capas y escena de `VehiculoAgente`, 14 sensores `RayCast2D` y normalización, física de los 5 atributos, colisión con muros, no colisión entre vehículos, temporizador anti-atascos, conteo de vueltas/checkpoints, resistencia a `NaN`/`INF`, **Modo Piloto Humano** (`es_humano` ↔ `control_manual`, entradas `WASD`/Flechas, física compartida y `ultimas_entradas_ia`) y **`EstelaTelemetrica`** (`top_level`, `z_index = 1`, colores verde/amarillo-naranja/azul-cian, longitud configurable `[10..600]` y limpieza en reinicio).
-* `tests/test_fase2_ia.gd` (**50 verificaciones**): Topología `18 -> 8 -> 2`, inferencia feedforward con `tanh()`, serialización y round-trip temporal de `CerebroEntrenado`, casos borde `NaN`/`INF`, integración con `VehiculoAgente`, modo seguro de `EntrenadorGenetico` con evaluación sobre las **3 geometrías** (`Assets/Presets_ia/` solo con `.gitkeep`), y **`ArquetiposPista` + Vista 2** (`creador_mapa.tscn`, carga editable de los 3 circuitos, layout `1280x720`/`1920x1080`, `BotonAnimado` y `tema_telemetria.tres`).
+* `tests/test_fase2_ia.gd` (**53 verificaciones**): Topología `18 -> 8 -> 2`, inferencia feedforward con `tanh()`, serialización y round-trip temporal de `CerebroEntrenado`, casos borde `NaN`/`INF`, integración con `VehiculoAgente`, modo seguro de `EntrenadorGenetico` con evaluación sobre las **3 geometrías**, escalado proporcional de currículum (`3..99` y `max_generaciones=3`), compuerta multi-geometría para niveles `6..9` (`Assets/Presets_ia/` solo con `.gitkeep`), y **`ArquetiposPista` + Vista 2** (`creador_mapa.tscn`, carga editable de los 3 circuitos, layout `1280x720`/`1920x1080`, `BotonAnimado` y `tema_telemetria.tres`).
 * `tests/test_fase3_vista3.gd` (**78 verificaciones**): `GeneradorCheckpoints` (celdas `16 px` y regresión topológica), escenas Vista 1–3 (`BotonAnimado` y paridad `tema_edrive.tres`/`tema_telemetria.tres`), minimapa dinámico, 3 tarjetas/5 sliders/10 niveles IA, sanitización y persistencia en `DatosSimulacion`, layout multi-resolución (`1920x1080`, `1440x900`, `1280x960`, `1280x720`), **arquetipos de vehículo** (`Equilibrado`, `Velocista`, `Drift`, `Técnico`, `Personalizado`) y **selector `IA / Piloto Humano`** (exclusividad máx-1, `OptNivelIA.disabled`, regresiones de estado y normalización `1/2/4` ranuras).
-* `tests/test_fase4_carrera.gd` (**50 verificaciones**): `VisorRedNeuronal` (`18 -> 8 -> 2` y modo `"Control Manual"`), aislamiento sin `DatosSimulacion`, reconstrucción Layer 1 y checkpoints dinámicos, simulación, zoom/seguimiento de cámara, toggle de rayos, escala de tiempo `1x/2x/4x`, reinicio (incluyendo regresión borde `Checkpoint_0`), layout multi-resolución, flujo E2E Vista 1→4 con `Assets/Presets_ia/` limpio (`.gitkeep`), invarianza de resolución, **Piloto Humano en Vista 4** (etiqueta `"Piloto Humano"`, `cerebro = null`, visor en vivo) y **`EstelaTelemetrica` + toggle `Estela: ON/OFF`** sin controles extra de longitud en la UI.
+* `tests/test_fase4_carrera.gd` (**53 verificaciones**): `VisorRedNeuronal` (`18 -> 8 -> 2` y modo `"Control Manual"`), aislamiento sin `DatosSimulacion`, reconstrucción Layer 1 y checkpoints dinámicos, simulación, zoom/seguimiento de cámara, toggle de rayos, escala de tiempo `1x/2x/4x`, reinicio (incluyendo regresión borde `Checkpoint_0`), layout multi-resolución, flujo E2E Vista 1→4 con `Assets/Presets_ia/` limpio (`.gitkeep`), invarianza de resolución, **Piloto Humano en Vista 4** (etiqueta `"Piloto Humano"`, `cerebro = null`, visor en vivo, botones con `FOCUS_NONE` sin secuestro de foco al conducir con flechas) y **`EstelaTelemetrica` + toggle `Estela: ON/OFF`** sin controles extra de longitud en la UI.
