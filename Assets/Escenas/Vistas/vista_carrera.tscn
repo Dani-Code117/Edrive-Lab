@@ -209,6 +209,19 @@ button_pressed = true
 text = "Rayos: ON"
 script = ExtResource("3_boton")
 
+[node name="BtnEstela" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
+custom_minimum_size = Vector2(106, 34)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+toggle_mode = true
+button_pressed = true
+text = "Estela: ON"
+script = ExtResource("3_boton")
+
 [node name="BtnReiniciar" type="Button" parent="Layout/BarraSuperior/Margin/HBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
@@ -608,7 +621,7 @@ clip_text = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0, 0.898, 1, 1)
 theme_override_font_sizes/font_size = 13
-text = "RED NEURONAL EN VIVO (7 → 6 → 2)"
+text = "RED NEURONAL EN VIVO (18 → 8 → 2)"
 
 [node name="VisorRed" parent="Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD" instance=ExtResource("5_visor")]
 layout_mode = 2

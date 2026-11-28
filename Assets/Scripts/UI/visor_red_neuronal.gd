@@ -73,49 +73,69 @@ func obtener_instantanea_segura() -> Dictionary:
 	var nivel_ia := 0
 	var color_coche := COLOR_POSITIVO
 	var tiene_red := false
+	var es_humano := false
+	var modo_texto := "Sin vehículo"
 
 	if tiene_vehiculo:
 		nombre_coche = vehiculo_objetivo.nombre_vehiculo
 		nivel_ia = vehiculo_objetivo.nivel_ia
 		color_coche = vehiculo_objetivo.color_vehiculo
+		es_humano = bool(vehiculo_objetivo.get("es_humano")) or vehiculo_objetivo.control_manual
 
-		var sensores: PackedFloat64Array = vehiculo_objetivo.lecturas_sensores
-		for i in range(mini(NUM_ENTRADAS, sensores.size())):
-			entradas[i] = _sanitizar_float(sensores[i], 0.0, 1.0, 0.0)
+		var u_ent_veh: Variant = vehiculo_objetivo.get("ultimas_entradas_ia")
+		if u_ent_veh is PackedFloat64Array and u_ent_veh.size() >= NUM_ENTRADAS:
+			for i in range(NUM_ENTRADAS):
+				entradas[i] = _sanitizar_float(u_ent_veh[i], 0.0, 1.0, 0.0)
+		else:
+			var sensores: PackedFloat64Array = vehiculo_objetivo.lecturas_sensores
+			for i in range(mini(NUM_ENTRADAS, sensores.size())):
+				entradas[i] = _sanitizar_float(sensores[i], 0.0, 1.0, 0.0)
 
-		var cer: Variant = vehiculo_objetivo.cerebro
-		if cer != null and (cer is RedNeuronal or (cer is Object and "pesos_oculta" in cer and "pesos_salida" in cer)):
-			tiene_red = true
-			var u_ent: Variant = cer.get("ultimas_entradas")
-			if u_ent is PackedFloat64Array and u_ent.size() >= NUM_ENTRADAS:
-				for i in range(NUM_ENTRADAS):
-					entradas[i] = _sanitizar_float(u_ent[i], 0.0, 1.0, entradas[i])
+		if es_humano:
+			tiene_red = false
+			modo_texto = "Control Manual"
+			salidas[0] = _sanitizar_float(vehiculo_objetivo.ultima_aceleracion_ia, -1.0, 1.0, 0.0)
+			salidas[1] = _sanitizar_float(vehiculo_objetivo.ultimo_giro_ia, -1.0, 1.0, 0.0)
+		else:
+			modo_texto = "IA %d" % nivel_ia
+			var cer: Variant = vehiculo_objetivo.cerebro
+			if cer != null and (cer is RedNeuronal or (cer is Object and "pesos_oculta" in cer and "pesos_salida" in cer)):
+				tiene_red = true
+				var u_ent: Variant = cer.get("ultimas_entradas")
+				if u_ent is PackedFloat64Array and u_ent.size() >= NUM_ENTRADAS:
+					for i in range(NUM_ENTRADAS):
+						entradas[i] = _sanitizar_float(u_ent[i], 0.0, 1.0, entradas[i])
 
-			var u_ocu: Variant = cer.get("ultimas_ocultas")
-			if u_ocu is PackedFloat64Array:
-				for j in range(mini(NUM_OCULTA, u_ocu.size())):
-					ocultas[j] = _sanitizar_float(u_ocu[j], -1.0, 1.0, 0.0)
+				var u_ocu: Variant = cer.get("ultimas_ocultas")
+				if u_ocu is PackedFloat64Array:
+					for j in range(mini(NUM_OCULTA, u_ocu.size())):
+						ocultas[j] = _sanitizar_float(u_ocu[j], -1.0, 1.0, 0.0)
 
-			var u_sal: Variant = cer.get("ultimas_salidas")
-			if u_sal is PackedFloat64Array:
-				if u_sal.size() > 0:
-					salidas[0] = _sanitizar_float(u_sal[0], -1.0, 1.0, 0.0)
-				if u_sal.size() > 1:
-					salidas[1] = _sanitizar_float(u_sal[1], -1.0, 1.0, 0.0)
+				var u_sal: Variant = cer.get("ultimas_salidas")
+				if u_sal is PackedFloat64Array:
+					if u_sal.size() > 0:
+						salidas[0] = _sanitizar_float(u_sal[0], -1.0, 1.0, 0.0)
+					if u_sal.size() > 1:
+						salidas[1] = _sanitizar_float(u_sal[1], -1.0, 1.0, 0.0)
 
-			var p_oc: Variant = cer.get("pesos_oculta")
-			if p_oc is PackedFloat64Array:
-				for idx in range(mini(pesos_oc.size(), p_oc.size())):
-					pesos_oc[idx] = _sanitizar_float(p_oc[idx], -10.0, 10.0, 0.0)
+				var p_oc: Variant = cer.get("pesos_oculta")
+				if p_oc is PackedFloat64Array:
+					for idx in range(mini(pesos_oc.size(), p_oc.size())):
+						pesos_oc[idx] = _sanitizar_float(p_oc[idx], -10.0, 10.0, 0.0)
 
-			var p_sa: Variant = cer.get("pesos_salida")
-			if p_sa is PackedFloat64Array:
-				for idx in range(mini(pesos_sal.size(), p_sa.size())):
-					pesos_sal[idx] = _sanitizar_float(p_sa[idx], -10.0, 10.0, 0.0)
+				var p_sa: Variant = cer.get("pesos_salida")
+				if p_sa is PackedFloat64Array:
+					for idx in range(mini(pesos_sal.size(), p_sa.size())):
+						pesos_sal[idx] = _sanitizar_float(p_sa[idx], -10.0, 10.0, 0.0)
+			else:
+				salidas[0] = _sanitizar_float(vehiculo_objetivo.ultima_aceleracion_ia, -1.0, 1.0, 0.0)
+				salidas[1] = _sanitizar_float(vehiculo_objetivo.ultimo_giro_ia, -1.0, 1.0, 0.0)
 
 	return {
 		"tiene_vehiculo": tiene_vehiculo,
 		"tiene_red": tiene_red,
+		"es_humano": es_humano,
+		"modo_texto": modo_texto,
 		"nombre": nombre_coche,
 		"nivel_ia": nivel_ia,
 		"color": color_coche,
@@ -142,6 +162,7 @@ func _draw() -> void:
 	var pesos_sal: PackedFloat64Array = datos["pesos_salida"]
 	var tiene_vehiculo: bool = datos["tiene_vehiculo"]
 	var tiene_red: bool = datos["tiene_red"]
+	var es_humano: bool = bool(datos.get("es_humano", false))
 
 	var fuente := get_theme_default_font()
 	if fuente == null:
@@ -153,7 +174,7 @@ func _draw() -> void:
 	var footer_h := 16.0
 	if tiene_vehiculo:
 		var col_titulo: Color = (datos["color"] as Color).lightened(0.28)
-		var txt_izq := "%s (IA %d)" % [datos["nombre"], datos["nivel_ia"]]
+		var txt_izq := "%s (Control Manual)" % datos["nombre"] if es_humano else "%s (IA %d)" % [datos["nombre"], datos["nivel_ia"]]
 		draw_string(fuente, Vector2(pad_x, 16.0), txt_izq, HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.52, 12, col_titulo)
 		var txt_der := "Acel %.2f | Giro %+.2f" % [salidas[0], salidas[1]]
 		draw_string(fuente, Vector2(size.x * 0.45, 16.0), txt_der, HORIZONTAL_ALIGNMENT_RIGHT, size.x * 0.55 - pad_x, 11, COLOR_TEXTO)
@@ -162,7 +183,7 @@ func _draw() -> void:
 
 	draw_line(Vector2(6.0, header_h), Vector2(size.x - 6.0, header_h), COLOR_BORDE, 1.0)
 
-	# Posiciones de las 3 capas (7 -> 6 -> 2)
+	# Posiciones de las 3 capas (18 -> 8 -> 2)
 	var area_top := header_h + 14.0
 	var area_bottom := size.y - footer_h - 14.0
 	var area_h := maxf(area_bottom - area_top, 40.0)
@@ -186,14 +207,14 @@ func _draw() -> void:
 		Vector2(x_out, area_top + area_h * 0.70),
 	]
 
-	# 1. Conexiones Entrada -> Oculta (pesos_oculta[j * 7 + i])
+	# 1. Conexiones Entrada -> Oculta (pesos_oculta[j * 18 + i])
 	for j in range(NUM_OCULTA):
 		for i in range(NUM_ENTRADAS):
 			var w := pesos_oc[j * NUM_ENTRADAS + i]
 			var act_pre := clampf(entradas[i], 0.0, 1.0)
 			_dibujar_conexion(pos_in[i], pos_hid[j], w, act_pre, tiene_red)
 
-	# 2. Conexiones Oculta -> Salida (pesos_salida[k * 6 + j])
+	# 2. Conexiones Oculta -> Salida (pesos_salida[k * 8 + j])
 	for k in range(NUM_SALIDA):
 		for j in range(NUM_OCULTA):
 			var w := pesos_sal[k * NUM_OCULTA + j]
@@ -213,7 +234,7 @@ func _draw() -> void:
 		draw_arc(pos_in[i], r_in, 0.0, TAU, 20, col_borde, 1.2)
 		draw_string(fuente, Vector2(4.0, pos_in[i].y + 4.0), ETIQUETAS_SENSORES[i], HORIZONTAL_ALIGNMENT_RIGHT, x_in - r_in - 8.0, 10, COLOR_TEXTO_TENUE)
 
-	# 4. Nodos Ocultos (6 neuronas tanh en [-1..1])
+	# 4. Nodos Ocultos (8 neuronas tanh en [-1..1])
 	var r_hid := clampf(area_h / 22.0, 6.0, 9.0)
 	for j in range(NUM_OCULTA):
 		var act := clampf(ocultas[j], -1.0, 1.0)
@@ -224,27 +245,36 @@ func _draw() -> void:
 		draw_circle(pos_hid[j], r_hid - 1.0, col_relleno)
 		draw_arc(pos_hid[j], r_hid, 0.0, TAU, 22, base_col if (tiene_red and mag > 0.25) else COLOR_BORDE.lightened(0.35), 1.3)
 
+	if tiene_vehiculo and es_humano:
+		var badge_w := clampf(size.x * 0.34, 96.0, 134.0)
+		var badge_h := 24.0
+		var badge_rect := Rect2(x_hid - badge_w * 0.5, area_top + area_h * 0.5 - badge_h * 0.5, badge_w, badge_h)
+		draw_rect(badge_rect, Color(0.055, 0.085, 0.135, 0.94), true)
+		draw_rect(badge_rect, COLOR_POSITIVO, false, 1.4)
+		draw_string(fuente, Vector2(badge_rect.position.x + 4.0, badge_rect.position.y + 16.0), "Control Manual", HORIZONTAL_ALIGNMENT_CENTER, badge_w - 8.0, 11, COLOR_POSITIVO)
+
 	# 5. Nodos de Salida (Acel [-1..1], Giro [-1..1])
+	var salidas_activas := tiene_red or es_humano
 	var r_out := clampf(area_h / 18.0, 7.5, 11.0)
 	# Aceleración (incluye reversa si < 0)
 	var acel := clampf(salidas[0], -1.0, 1.0)
 	var col_base_acel := COLOR_VERDE if acel >= 0.0 else COLOR_NEGATIVO
-	var col_acel := COLOR_INACTIVO.lerp(col_base_acel, absf(acel)) if tiene_red else COLOR_INACTIVO
+	var col_acel := COLOR_INACTIVO.lerp(col_base_acel, absf(acel)) if salidas_activas else COLOR_INACTIVO
 	draw_circle(pos_out[0], r_out, COLOR_FONDO)
 	draw_circle(pos_out[0], r_out - 1.2, col_acel)
-	draw_arc(pos_out[0], r_out, 0.0, TAU, 24, col_base_acel if (tiene_red and absf(acel) > 0.2) else COLOR_BORDE.lightened(0.4), 1.5)
+	draw_arc(pos_out[0], r_out, 0.0, TAU, 24, col_base_acel if (salidas_activas and absf(acel) > 0.2) else COLOR_BORDE.lightened(0.4), 1.5)
 	draw_string(fuente, Vector2(pos_out[0].x + r_out + 6.0, pos_out[0].y - 1.0), ETIQUETAS_SALIDAS[0], HORIZONTAL_ALIGNMENT_LEFT, 54.0, 11, COLOR_TEXTO)
-	draw_string(fuente, Vector2(pos_out[0].x + r_out + 6.0, pos_out[0].y + 11.0), "%+.2f" % acel, HORIZONTAL_ALIGNMENT_LEFT, 54.0, 10, col_base_acel if tiene_red else COLOR_TEXTO_TENUE)
+	draw_string(fuente, Vector2(pos_out[0].x + r_out + 6.0, pos_out[0].y + 11.0), "%+.2f" % acel, HORIZONTAL_ALIGNMENT_LEFT, 54.0, 10, col_base_acel if salidas_activas else COLOR_TEXTO_TENUE)
 
 	# Giro
 	var giro := clampf(salidas[1], -1.0, 1.0)
 	var col_base_giro := COLOR_POSITIVO if giro >= 0.0 else COLOR_NEGATIVO
-	var col_giro := COLOR_INACTIVO.lerp(col_base_giro, absf(giro)) if tiene_red else COLOR_INACTIVO
+	var col_giro := COLOR_INACTIVO.lerp(col_base_giro, absf(giro)) if salidas_activas else COLOR_INACTIVO
 	draw_circle(pos_out[1], r_out, COLOR_FONDO)
 	draw_circle(pos_out[1], r_out - 1.2, col_giro)
-	draw_arc(pos_out[1], r_out, 0.0, TAU, 24, col_base_giro if (tiene_red and absf(giro) > 0.2) else COLOR_BORDE.lightened(0.4), 1.5)
+	draw_arc(pos_out[1], r_out, 0.0, TAU, 24, col_base_giro if (salidas_activas and absf(giro) > 0.2) else COLOR_BORDE.lightened(0.4), 1.5)
 	draw_string(fuente, Vector2(pos_out[1].x + r_out + 6.0, pos_out[1].y - 1.0), ETIQUETAS_SALIDAS[1], HORIZONTAL_ALIGNMENT_LEFT, 54.0, 11, COLOR_TEXTO)
-	draw_string(fuente, Vector2(pos_out[1].x + r_out + 6.0, pos_out[1].y + 11.0), "%+.2f" % giro, HORIZONTAL_ALIGNMENT_LEFT, 54.0, 10, col_base_giro if tiene_red else COLOR_TEXTO_TENUE)
+	draw_string(fuente, Vector2(pos_out[1].x + r_out + 6.0, pos_out[1].y + 11.0), "%+.2f" % giro, HORIZONTAL_ALIGNMENT_LEFT, 54.0, 10, col_base_giro if salidas_activas else COLOR_TEXTO_TENUE)
 
 	# Etiquetas de columna en pie
 	var y_pie := size.y - 4.0

@@ -17,6 +17,7 @@ const VEL_SUAVIZADO_CAMARA: float = 10.0
 @onready var btn_vel_2x: Button = $Layout/BarraSuperior/Margin/HBox/ControlesVelocidad/BtnVel2x
 @onready var btn_vel_4x: Button = $Layout/BarraSuperior/Margin/HBox/ControlesVelocidad/BtnVel4x
 @onready var btn_rayos: Button = $Layout/BarraSuperior/Margin/HBox/BtnRayos
+@onready var btn_estela: Button = $Layout/BarraSuperior/Margin/HBox/BtnEstela
 @onready var btn_reiniciar: Button = $Layout/BarraSuperior/Margin/HBox/BtnReiniciar
 @onready var btn_volver_config: Button = $Layout/BarraSuperior/Margin/HBox/BtnVolverConfig
 @onready var btn_editar_mapa: Button = $Layout/BarraSuperior/Margin/HBox/BtnEditarMapa
@@ -34,6 +35,7 @@ const VEL_SUAVIZADO_CAMARA: float = 10.0
 @onready var nodo_vehiculos: Node2D = $Layout/Cuerpo/AreaPista/ViewportPista/SubViewportPista/Escenario/Vehiculos
 
 @onready var contenedor_tarjetas: VBoxContainer = $Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/TarjetasTelemetria
+@onready var lbl_seccion_visor: Label = $Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/LblSeccionVisor
 @onready var visor_red: VisorRedNeuronal = $Layout/Cuerpo/PanelHUD/MarginHUD/ScrollHUD/VBoxHUD/VisorRed
 
 var _celdas_activas: Dictionary = {}
@@ -51,6 +53,7 @@ var _checkpoints: Array[CheckpointArea] = []
 var _tarjetas_ui: Array[Dictionary] = []
 var _indice_inspeccionado: int = -1
 var _mostrar_sensores_activo: bool = true
+var _mostrar_estela_activo: bool = true
 var _cam_pos_completa: Vector2 = Vector2.ZERO
 var _cam_zoom_completo: float = 1.0
 var _estilo_tarjeta_normal: StyleBoxFlat = null
@@ -82,11 +85,13 @@ func _ready() -> void:
 	_reconstruir_pista()
 	_instanciar_checkpoints()
 	_configurar_meta_visual()
+	DatosSimulacion.sanitizar_config_vehiculos()
 	_instanciar_vehiculos()
 	_configurar_tarjetas_hud()
 	_seleccionar_vehiculo_inspeccion(-1)
 	_establecer_velocidad(1.0)
 	_actualizar_boton_rayos()
+	_actualizar_boton_estela()
 
 	_ajustar_escenario()
 	call_deferred("_ajustar_escenario")
@@ -135,6 +140,8 @@ func _conectar_controles_barra() -> void:
 	btn_vel_2x.pressed.connect(func(): _establecer_velocidad(2.0))
 	btn_vel_4x.pressed.connect(func(): _establecer_velocidad(4.0))
 	btn_rayos.toggled.connect(_on_rayos_toggled)
+	if btn_estela != null:
+		btn_estela.toggled.connect(_on_estela_toggled)
 	btn_reiniciar.pressed.connect(_on_reiniciar_pressed)
 	btn_volver_config.pressed.connect(_on_volver_config_pressed)
 	btn_editar_mapa.pressed.connect(_on_editar_mapa_pressed)
@@ -292,8 +299,12 @@ func _instanciar_vehiculos() -> void:
 		nodo_vehiculos.add_child(coche)
 		coche.configurar(cfg)
 		coche.posiciones_checkpoints = pos_cps
-		coche.cerebro = RedNeuronal.cargar_nivel_o_fallback(coche.nivel_ia)
+		if coche.es_humano or coche.control_manual:
+			coche.cerebro = null
+		else:
+			coche.cerebro = RedNeuronal.cargar_nivel_o_fallback(coche.nivel_ia)
 		coche.mostrar_sensores = _mostrar_sensores_activo
+		coche.mostrar_estela = _mostrar_estela_activo
 		coche.reiniciar_estado(pos_global, _rot_salida_activa, cant_cps)
 		coche.position = _pos_salida_activa
 		coche.chocado.connect(_on_vehiculo_chocado)
@@ -333,8 +344,13 @@ func _configurar_tarjetas_hud() -> void:
 		lbl_nombre.text = coche.nombre_vehiculo
 		lbl_nombre.add_theme_color_override("font_color", coche.color_vehiculo.lightened(0.28))
 
-		var titulo_ia := _obtener_titulo_nivel(coche.nivel_ia)
-		lbl_nivel.text = "Nivel %d — %s" % [coche.nivel_ia, titulo_ia]
+		if coche.es_humano or coche.control_manual:
+			lbl_nivel.text = "Piloto Humano"
+			lbl_nivel.add_theme_color_override("font_color", Color(0.0, 0.898, 1.0, 1.0))
+		else:
+			var titulo_ia := _obtener_titulo_nivel(coche.nivel_ia)
+			lbl_nivel.text = "Nivel %d — %s" % [coche.nivel_ia, titulo_ia]
+			lbl_nivel.add_theme_color_override("font_color", Color(0.7, 0.78, 0.88, 1.0))
 
 		var idx_local := i
 		for con in btn_insp.pressed.get_connections():
@@ -390,6 +406,18 @@ func _seleccionar_vehiculo_inspeccion(indice: int) -> void:
 		if btn != null:
 			btn.text = "Inspeccionando" if activo else "Inspeccionar"
 
+	_actualizar_titulo_visor()
+
+
+func _actualizar_titulo_visor() -> void:
+	if lbl_seccion_visor == null:
+		return
+	var obj: VehiculoAgente = visor_red.vehiculo_objetivo if visor_red != null else null
+	var es_hum := obj != null and is_instance_valid(obj) and (obj.es_humano or obj.control_manual)
+	var texto_objetivo := "CONTROL MANUAL EN VIVO" if es_hum else "RED NEURONAL EN VIVO (18 → 8 → 2)"
+	if lbl_seccion_visor.text != texto_objetivo:
+		lbl_seccion_visor.text = texto_objetivo
+
 
 func _actualizar_telemetria_hud() -> void:
 	var cant_cps := _checkpoints_activos.size()
@@ -412,6 +440,8 @@ func _actualizar_telemetria_hud() -> void:
 
 		lbl_vuelta.text = "Vuelta: %d" % coche.vuelta_actual
 		lbl_cps.text = "Checkpoints: %d (%d/vta)" % [coche.checkpoints_cruzados, cant_cps]
+
+	_actualizar_titulo_visor()
 
 
 func _on_vehiculo_chocado(_vehiculo: VehiculoAgente, _motivo: String) -> void:
@@ -449,6 +479,20 @@ func _actualizar_boton_rayos() -> void:
 		btn_rayos.text = "Rayos: ON" if _mostrar_sensores_activo else "Rayos: OFF"
 
 
+func _on_estela_toggled(activo: bool) -> void:
+	_mostrar_estela_activo = activo
+	for coche in _vehiculos:
+		if coche != null and is_instance_valid(coche):
+			coche.mostrar_estela = activo
+	_actualizar_boton_estela()
+
+
+func _actualizar_boton_estela() -> void:
+	if btn_estela != null:
+		btn_estela.set_pressed_no_signal(_mostrar_estela_activo)
+		btn_estela.text = "Estela: ON" if _mostrar_estela_activo else "Estela: OFF"
+
+
 func _on_reiniciar_pressed() -> void:
 	var cant_cps := _checkpoints_activos.size()
 	var pos_global := escenario.to_global(_pos_salida_activa)
@@ -457,6 +501,7 @@ func _on_reiniciar_pressed() -> void:
 			coche.reiniciar_estado(pos_global, _rot_salida_activa, cant_cps)
 			coche.position = _pos_salida_activa
 			coche.mostrar_sensores = _mostrar_sensores_activo
+			coche.mostrar_estela = _mostrar_estela_activo
 			if coche.cerebro is RedNeuronal:
 				(coche.cerebro as RedNeuronal)._reiniciar_instantaneas()
 	_actualizar_telemetria_hud()
