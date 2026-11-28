@@ -122,27 +122,32 @@ static func entrenar_en_arbol(
 	Engine.time_scale = 40.0
 	Engine.max_physics_steps_per_frame = 200
 
+	var umbrales := calcular_umbrales_curriculum(max_generaciones)
+	var gen_s := int(umbrales["gen_s"])
+	var gen_horquilla := int(umbrales["gen_horquilla"])
+
 	for gen in range(max_generaciones):
 		var stats_ovalo := await _evaluar_poblacion_en_pista(arbol, poblacion, circuito_ovalo, max_ticks, 0.75)
 		var fitnesses := PackedFloat64Array()
 		fitnesses.resize(tamano_poblacion)
 
-		var eval_s := gen >= 15 or max_generaciones <= 2
+		var eval_s := gen >= gen_s
 		var stats_s: Array[Dictionary] = []
 		if eval_s:
 			stats_s = await _evaluar_poblacion_en_pista(arbol, poblacion, circuito_s, max_ticks, 0.75)
 
-		var eval_horquilla := gen >= 35 or max_generaciones <= 2
+		var eval_horquilla := gen >= gen_horquilla
 		var stats_horquilla: Array[Dictionary] = []
 		if eval_horquilla:
 			stats_horquilla = await _evaluar_poblacion_en_pista(arbol, poblacion, circuito_horquilla, max_ticks, 0.75)
 
+		var todas_geometrias := eval_s and eval_horquilla
 		var mejor_idx := 0
 		var mejor_fit := -1.0
 		var mejor_cps := 0
 		var mejor_vueltas := 1
 		var mejor_cps_ambas := 0
-		var mejor_vueltas_ambas := 1
+		var mejor_vueltas_ambas := 0
 
 		for i in range(tamano_poblacion):
 			var so: Dictionary = stats_ovalo[i]
@@ -150,22 +155,28 @@ static func entrenar_en_arbol(
 			var num_pistas: int = 1
 			var cps: int = int(so["checkpoints"])
 			var vueltas: int = int(so["vueltas"])
-			var cps_ambas := cps
-			var vueltas_ambas := vueltas
+			var cps_ambas := 0
+			var vueltas_ambas := 0
 
 			if eval_s and i < stats_s.size():
 				var ss: Dictionary = stats_s[i]
 				suma_fit += float(ss["fitness"])
 				num_pistas += 1
-				cps_ambas = mini(cps_ambas, int(ss["checkpoints"]))
-				vueltas_ambas = mini(vueltas_ambas, int(ss["vueltas"]))
 
 			if eval_horquilla and i < stats_horquilla.size():
 				var sh: Dictionary = stats_horquilla[i]
 				suma_fit += float(sh["fitness"])
 				num_pistas += 1
-				cps_ambas = mini(cps_ambas, int(sh["checkpoints"]))
-				vueltas_ambas = mini(vueltas_ambas, int(sh["vueltas"]))
+
+			if todas_geometrias:
+				cps_ambas = cps
+				vueltas_ambas = vueltas
+				if i < stats_s.size():
+					cps_ambas = mini(cps_ambas, int(stats_s[i]["checkpoints"]))
+					vueltas_ambas = mini(vueltas_ambas, int(stats_s[i]["vueltas"]))
+				if i < stats_horquilla.size():
+					cps_ambas = mini(cps_ambas, int(stats_horquilla[i]["checkpoints"]))
+					vueltas_ambas = mini(vueltas_ambas, int(stats_horquilla[i]["vueltas"]))
 
 			var fit := suma_fit / float(num_pistas)
 			fitnesses[i] = fit
@@ -191,7 +202,8 @@ static func entrenar_en_arbol(
 			mejor_cps,
 			mejor_vueltas,
 			mejor_cps_ambas,
-			mejor_vueltas_ambas
+			mejor_vueltas_ambas,
+			todas_geometrias
 		)
 
 		if gen < max_generaciones - 1:
@@ -216,6 +228,17 @@ static func entrenar_en_arbol(
 	return resultados
 
 
+static func calcular_umbrales_curriculum(max_generaciones: int) -> Dictionary:
+	var max_gen := maxi(1, max_generaciones)
+	if max_gen <= 2:
+		return {"gen_s": 0, "gen_horquilla": 0}
+	if max_gen >= 100:
+		return {"gen_s": 15, "gen_horquilla": 35}
+	var gen_s := mini(15, maxi(1, int(floor(float(max_gen) * 0.15))))
+	var gen_horquilla := mini(35, maxi(2, int(floor(float(max_gen) * 0.35))))
+	return {"gen_s": gen_s, "gen_horquilla": gen_horquilla}
+
+
 static func _registrar_captura_progresiva(
 	capturas: Dictionary,
 	gen: int,
@@ -225,8 +248,13 @@ static func _registrar_captura_progresiva(
 	cps: int,
 	vueltas: int,
 	cps_ambas: int,
-	vueltas_ambas: int
+	vueltas_ambas: int,
+	todas_geometrias: bool = true
 ) -> void:
+	var umbrales := calcular_umbrales_curriculum(max_gen)
+	var multi_geo_activa := todas_geometrias and gen >= int(umbrales["gen_s"]) and gen >= int(umbrales["gen_horquilla"])
+	var cps_multi := cps_ambas if multi_geo_activa else 0
+	var vueltas_multi := vueltas_ambas if multi_geo_activa else 0
 	var prog := float(gen + 1) / float(maxi(1, max_gen))
 	if not capturas.has(2) and (cps >= 3 or prog >= 0.05):
 		capturas[2] = {"red": campeon.clonar(), "fitness": fit}
@@ -236,14 +264,15 @@ static func _registrar_captura_progresiva(
 		capturas[4] = {"red": campeon.clonar(), "fitness": fit}
 	if not capturas.has(5) and (vueltas >= 2 or prog >= 0.30):
 		capturas[5] = {"red": campeon.clonar(), "fitness": fit}
-	if not capturas.has(6) and (vueltas_ambas >= 2 or (cps_ambas >= 12 and prog >= 0.42)):
-		capturas[6] = {"red": campeon.clonar(), "fitness": fit}
-	if not capturas.has(7) and (vueltas_ambas >= 3 or prog >= 0.55):
-		capturas[7] = {"red": campeon.clonar(), "fitness": fit}
-	if not capturas.has(8) and (vueltas_ambas >= 3 and prog >= 0.68 or prog >= 0.72):
-		capturas[8] = {"red": campeon.clonar(), "fitness": fit}
-	if not capturas.has(9) and (vueltas_ambas >= 4 or prog >= 0.85):
-		capturas[9] = {"red": campeon.clonar(), "fitness": fit}
+	if multi_geo_activa:
+		if not capturas.has(6) and (vueltas_multi >= 2 or (cps_multi >= 12 and prog >= 0.42)):
+			capturas[6] = {"red": campeon.clonar(), "fitness": fit}
+		if not capturas.has(7) and (vueltas_multi >= 3 or prog >= 0.55):
+			capturas[7] = {"red": campeon.clonar(), "fitness": fit}
+		if not capturas.has(8) and ((vueltas_multi >= 3 and prog >= 0.68) or prog >= 0.72):
+			capturas[8] = {"red": campeon.clonar(), "fitness": fit}
+		if not capturas.has(9) and (vueltas_multi >= 4 or prog >= 0.85):
+			capturas[9] = {"red": campeon.clonar(), "fitness": fit}
 	if gen == max_gen - 1:
 		capturas[10] = {"red": campeon.clonar(), "fitness": fit}
 

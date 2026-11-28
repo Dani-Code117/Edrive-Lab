@@ -495,6 +495,60 @@ func _test_e_entrenador_genetico_y_presets_vacios() -> void:
 		"Assets/Presets_ia/ contiene unicamente .gitkeep y cero .tres (archivos: %s)" % str(archivos)
 	)
 
+	# Regresion curriculum: umbrales proporcionales en 3..99 y compuerta multi-geometria para niveles 6..9
+	var u1 := EntrenadorGenetico.calcular_umbrales_curriculum(1)
+	var u2 := EntrenadorGenetico.calcular_umbrales_curriculum(2)
+	var u3 := EntrenadorGenetico.calcular_umbrales_curriculum(3)
+	var u20 := EntrenadorGenetico.calcular_umbrales_curriculum(20)
+	var u100 := EntrenadorGenetico.calcular_umbrales_curriculum(100)
+	_assert_true(
+		int(u1["gen_s"]) == 0 and int(u1["gen_horquilla"]) == 0
+		and int(u2["gen_s"]) == 0 and int(u2["gen_horquilla"]) == 0
+		and int(u3["gen_s"]) == 1 and int(u3["gen_horquilla"]) == 2
+		and int(u20["gen_s"]) == 3 and int(u20["gen_horquilla"]) == 7
+		and int(u100["gen_s"]) == 15 and int(u100["gen_horquilla"]) == 35,
+		"calcular_umbrales_curriculum escala proporcionalmente en [3..99] y preserva <=2 (0/0) y >=100 (15/35)"
+	)
+
+	var red_cap := RedNeuronal.new()
+	var cap_gen10: Dictionary = {}
+	EntrenadorGenetico._registrar_captura_progresiva(cap_gen10, 10, 100, red_cap, 1200.0, 50, 4, 50, 4)
+	var cap_gen20: Dictionary = {}
+	EntrenadorGenetico._registrar_captura_progresiva(cap_gen20, 20, 100, red_cap, 1200.0, 50, 4, 50, 4)
+	var cap_gen35_sin_todas: Dictionary = {}
+	EntrenadorGenetico._registrar_captura_progresiva(cap_gen35_sin_todas, 35, 100, red_cap, 1200.0, 50, 4, 50, 4, false)
+	var cap_gen35_con_todas: Dictionary = {}
+	EntrenadorGenetico._registrar_captura_progresiva(cap_gen35_con_todas, 35, 100, red_cap, 1200.0, 50, 4, 50, 4, true)
+	_assert_true(
+		cap_gen10.has(2) and cap_gen10.has(5)
+		and not cap_gen10.has(6) and not cap_gen10.has(7) and not cap_gen10.has(8) and not cap_gen10.has(9)
+		and not cap_gen20.has(6) and not cap_gen20.has(7) and not cap_gen20.has(8) and not cap_gen20.has(9)
+		and not cap_gen35_sin_todas.has(6) and not cap_gen35_sin_todas.has(7)
+		and cap_gen35_con_todas.has(6) and cap_gen35_con_todas.has(7) and cap_gen35_con_todas.has(9),
+		"Niveles 6..9 no se capturan prematuramente antes de activar las 3 geometrias"
+	)
+
+	var niveles_3gen := await EntrenadorGenetico.entrenar_en_arbol(self, RUTA_PRESETS_IA, {
+		"tamano_poblacion": 4,
+		"max_generaciones": 3,
+		"max_ticks": 10,
+		"guardar_en_disco": false,
+		"semilla": 54321,
+	})
+	var gen3_ok := niveles_3gen.size() == 10
+	if gen3_ok:
+		for i in range(10):
+			if not niveles_3gen[i].es_valido() or niveles_3gen[i].nivel != i + 1:
+				gen3_ok = false
+				break
+	_assert_true(
+		gen3_ok
+		and Engine.physics_ticks_per_second == tps_prev
+		and is_equal_approx(Engine.time_scale, scale_prev)
+		and Engine.max_physics_steps_per_frame == steps_prev,
+		"entrenar_en_arbol con max_generaciones=3 recorre progresion 3-geometrias, retorna 10 niveles validos y restaura Engine"
+	)
+
 
 func _test_f_arquetipos_pista_y_creador_mapa() -> void:
 	print("--- Test (f): ArquetiposPista, carga editable en Vista 2 y layout responsivo ---")
